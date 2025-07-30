@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_explanation_requests: {
+        Row: {
+          content_id: string
+          content_type: string
+          created_at: string
+          explanation_generated: string | null
+          id: string
+          terms_explained: string[]
+          user_id: string
+        }
+        Insert: {
+          content_id: string
+          content_type: string
+          created_at?: string
+          explanation_generated?: string | null
+          id?: string
+          terms_explained: string[]
+          user_id: string
+        }
+        Update: {
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          explanation_generated?: string | null
+          id?: string
+          terms_explained?: string[]
+          user_id?: string
+        }
+        Relationships: []
+      }
       bookmarks: {
         Row: {
           article_id: string | null
@@ -733,6 +763,81 @@ export type Database = {
           id?: string
           tag_name?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      tech_glossary: {
+        Row: {
+          category: string | null
+          created_at: string
+          created_by: string | null
+          definition: string
+          difficulty_level: number | null
+          explanation_detailed: string | null
+          explanation_simple: string | null
+          id: string
+          is_active: boolean | null
+          related_terms: string[] | null
+          term: string
+          updated_at: string
+          usage_examples: Json | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          definition: string
+          difficulty_level?: number | null
+          explanation_detailed?: string | null
+          explanation_simple?: string | null
+          id?: string
+          is_active?: boolean | null
+          related_terms?: string[] | null
+          term: string
+          updated_at?: string
+          usage_examples?: Json | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          definition?: string
+          difficulty_level?: number | null
+          explanation_detailed?: string | null
+          explanation_simple?: string | null
+          id?: string
+          is_active?: boolean | null
+          related_terms?: string[] | null
+          term?: string
+          updated_at?: string
+          usage_examples?: Json | null
+        }
+        Relationships: []
+      }
+      term_detection_history: {
+        Row: {
+          content_id: string
+          content_type: string
+          created_at: string
+          detected_terms: string[]
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          content_id: string
+          content_type: string
+          created_at?: string
+          detected_terms: string[]
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          detected_terms?: string[]
+          id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
