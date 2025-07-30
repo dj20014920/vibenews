@@ -41,6 +41,7 @@ import {
   Shield,
   Search
 } from 'lucide-react'
+import { NewsCollector } from '@/components/admin/NewsCollector'
 
 interface GlossaryTerm {
   id: string
@@ -284,15 +285,18 @@ export default function Admin() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+      {/* News Collector */}
+      <NewsCollector />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Brain className="h-8 w-8" />
-            기술 용어 사전 관리
+            관리자 대시보드
           </h1>
           <p className="text-muted-foreground">
-            개발자들을 위한 기술 용어를 관리하고 편집하세요
+            콘텐츠 자동화 및 기술 용어 사전을 관리하세요
           </p>
         </div>
         
