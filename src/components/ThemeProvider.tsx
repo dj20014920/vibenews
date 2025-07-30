@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useState } from "react"
-import { useAuth } from "@/contexts/AuthContext"
 
 type Theme = "dark" | "light" | "system"
 
@@ -27,17 +26,9 @@ export function ThemeProvider({
   storageKey = "vibenews-ui-theme",
   ...props
 }: ThemeProviderProps) {
-  const { preferences, updatePreferences } = useAuth()
   const [theme, setThemeState] = useState<Theme>(
-    () => preferences?.theme || (localStorage.getItem(storageKey) as Theme) || defaultTheme
+    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
   )
-
-  useEffect(() => {
-    // 사용자 설정이 있으면 그것을 사용
-    if (preferences?.theme) {
-      setThemeState(preferences.theme)
-    }
-  }, [preferences?.theme])
 
   useEffect(() => {
     const root = window.document.documentElement
@@ -61,10 +52,7 @@ export function ThemeProvider({
     localStorage.setItem(storageKey, newTheme)
     setThemeState(newTheme)
     
-    // 로그인된 사용자의 경우 설정 업데이트
-    if (preferences) {
-      updatePreferences({ theme: newTheme })
-    }
+    // TODO: 로그인된 사용자의 경우 향후 설정 동기화 추가 예정
   }
 
   const value = {

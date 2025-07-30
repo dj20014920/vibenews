@@ -1,148 +1,270 @@
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Heart, MessageCircle, Eye, ExternalLink } from "lucide-react"
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Heart, MessageCircle, Share2, Bookmark, Clock, Eye, ExternalLink } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { ProtectedAction, GuestPrompt } from "@/components/auth/ProtectedAction";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useToast } from "@/hooks/use-toast";
 
-// 더미 데이터 - 실제로는 Supabase에서 가져올 예정
-const dummyArticles = [
-  {
-    id: "1",
-    title: "AI 기술의 최신 동향과 미래 전망",
-    summary: "인공지능 기술이 우리 생활에 미치는 영향과 앞으로의 발전 방향에 대해 살펴봅니다.",
-    content: "최근 AI 기술의 발전이 가속화되면서...",
-    thumbnail: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400&h=200&fit=crop",
-    author: "AI 뉴스팀",
-    source_url: "https://example.com/news/1",
-    published_at: "2024-01-20",
-    tags: ["AI", "기술", "미래"],
-    view_count: 1240,
-    like_count: 89,
-    is_featured: true
-  },
-  {
-    id: "2", 
-    title: "친환경 에너지 정책의 새로운 변화",
-    summary: "정부의 새로운 친환경 에너지 정책이 발표되면서 관련 업계에 큰 변화가 예상됩니다.",
-    content: "정부가 발표한 신재생 에너지 로드맵에 따르면...",
-    thumbnail: "https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=400&h=200&fit=crop",
-    author: "환경 뉴스팀",
-    source_url: "https://example.com/news/2", 
-    published_at: "2024-01-19",
-    tags: ["환경", "에너지", "정책"],
-    view_count: 856,
-    like_count: 67,
-    is_featured: false
-  },
-  {
-    id: "3",
-    title: "글로벌 경제 시장의 최근 동향 분석",
-    summary: "세계 경제의 불확실성 속에서 주요 지표들의 변화를 분석해봅니다.",
-    content: "글로벌 경제 전문가들은 현재 시장 상황에 대해...",
-    thumbnail: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&h=200&fit=crop",
-    author: "경제 뉴스팀",
-    source_url: "https://example.com/news/3",
-    published_at: "2024-01-18", 
-    tags: ["경제", "시장", "분석"],
-    view_count: 2103,
-    like_count: 156,
-    is_featured: true
-  }
-]
+interface NewsArticle {
+  id: string;
+  title: string;
+  content: string;
+  content_simplified?: string;
+  summary: string;
+  source_url: string;
+  thumbnail?: string;
+  author?: string;
+  tags: string[];
+  published_at: string;
+  view_count: number;
+  like_count: number;
+  created_at: string;
+}
 
-export default function News() {
-  const [activeTab, setActiveTab] = useState("featured")
+const News = () => {
+  const [articles, setArticles] = useState<NewsArticle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { canLike, canBookmark, requireAuth } = usePermissions();
+  const { toast } = useToast();
 
-  const featuredArticles = dummyArticles.filter(article => article.is_featured)
-  const allArticles = dummyArticles
+  useEffect(() => {
+    loadArticles();
+  }, []);
 
-  const ArticleCard = ({ article }: { article: typeof dummyArticles[0] }) => (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-      <div className="aspect-video overflow-hidden">
-        <img 
-          src={article.thumbnail} 
-          alt={article.title}
-          className="w-full h-full object-cover hover:scale-105 transition-transform"
-        />
+  const loadArticles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('news_articles')
+        .select('*')
+        .eq('is_hidden', false)
+        .order('published_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+      setArticles(data || []);
+    } catch (error) {
+      console.error('Error loading articles:', error);
+      toast({
+        title: "오류",
+        description: "뉴스를 불러오는 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLike = async (articleId: string) => {
+    if (!requireAuth('like')) return;
+
+    // TODO: 좋아요 기능 구현
+    toast({
+      title: "좋아요!",
+      description: "기능 구현 예정입니다.",
+    });
+  };
+
+  const handleBookmark = async (articleId: string) => {
+    if (!requireAuth('bookmark')) return;
+
+    // TODO: 북마크 기능 구현
+    toast({
+      title: "스크랩 완료",
+      description: "기능 구현 예정입니다.",
+    });
+  };
+
+  const handleShare = async (article: NewsArticle) => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: article.title,
+          text: article.summary,
+          url: window.location.href,
+        });
+      } catch (error) {
+        // 사용자가 공유를 취소한 경우
+      }
+    } else {
+      // Web Share API가 지원되지 않는 경우 클립보드에 복사
+      await navigator.clipboard.writeText(window.location.href);
+      toast({
+        title: "링크 복사됨",
+        description: "링크가 클립보드에 복사되었습니다.",
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="container-custom py-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">뉴스를 불러오는 중...</p>
+        </div>
       </div>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <Badge variant="secondary">{article.author}</Badge>
-          <span className="text-sm text-muted-foreground">{article.published_at}</span>
-        </div>
-        <CardTitle className="line-clamp-2">{article.title}</CardTitle>
-        <CardDescription className="line-clamp-3">{article.summary}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex gap-2">
-            {article.tags.slice(0, 3).map((tag) => (
-              <Badge key={tag} variant="outline" className="text-xs">
-                {tag}
-              </Badge>
-            ))}
-          </div>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Eye className="h-4 w-4" />
-              {article.view_count.toLocaleString()}
-            </div>
-            <div className="flex items-center gap-1">
-              <Heart className="h-4 w-4" />
-              {article.like_count}
-            </div>
-            <div className="flex items-center gap-1">
-              <MessageCircle className="h-4 w-4" />
-              0
-            </div>
-          </div>
-          
-          <Button variant="outline" size="sm" asChild>
-            <a href={article.source_url} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-4 w-4 mr-1" />
-              원문 보기
-            </a>
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  )
+    );
+  }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container-custom py-8 space-y-6">
+      {/* 헤더 */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold">뉴스</h1>
+        <h1 className="text-3xl font-bold">바이브 코딩 뉴스</h1>
         <p className="text-muted-foreground">
-          최신 뉴스와 트렌드를 확인하세요
+          최신 AI 코딩 도구와 개발 트렌드를 확인하세요
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-[400px] grid-cols-2">
-          <TabsTrigger value="featured">추천 뉴스</TabsTrigger>
-          <TabsTrigger value="all">전체 뉴스</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="featured" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {featuredArticles.map((article) => (
-              <ArticleCard key={article.id} article={article} />
-            ))}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="all" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {allArticles.map((article) => (
-              <ArticleCard key={article.id} article={article} />
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+      {/* 비회원 유도 메시지 */}
+      <GuestPrompt 
+        message="뉴스에 좋아요, 댓글, 스크랩하려면 회원가입하세요"
+        actionText="무료 회원가입"
+      />
+
+      {/* 뉴스 목록 */}
+      <div className="grid gap-6">
+        {articles.map((article) => (
+          <Card key={article.id} className="content-card group">
+            <CardHeader className="space-y-4">
+              {/* 썸네일 */}
+              {article.thumbnail && (
+                <div className="relative overflow-hidden rounded-lg">
+                  <img 
+                    src={article.thumbnail} 
+                    alt={article.title}
+                    className="content-image"
+                  />
+                </div>
+              )}
+
+              {/* 제목과 메타 정보 */}
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-4">
+                  <h2 className="text-xl font-semibold leading-tight group-hover:text-primary transition-colors">
+                    {article.title}
+                  </h2>
+                  {article.source_url && (
+                    <Button variant="ghost" size="sm" asChild>
+                      <a href={article.source_url} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </Button>
+                  )}
+                </div>
+
+                {/* 태그 */}
+                {article.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {article.tags.map((tag, index) => (
+                      <Badge key={index} variant="secondary" className="tag-secondary">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                {/* 메타 정보 */}
+                <div className="flex items-center text-sm text-muted-foreground space-x-4">
+                  {article.author && (
+                    <span>작성자: {article.author}</span>
+                  )}
+                  <div className="flex items-center">
+                    <Clock className="h-4 w-4 mr-1" />
+                    {new Date(article.published_at).toLocaleDateString('ko-KR')}
+                  </div>
+                  <div className="flex items-center">
+                    <Eye className="h-4 w-4 mr-1" />
+                    {article.view_count.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              {/* 요약 */}
+              <p className="text-muted-foreground leading-relaxed">
+                {article.summary}
+              </p>
+
+              {/* 액션 버튼들 */}
+              <div className="flex items-center justify-between pt-4 border-t">
+                <div className="flex items-center space-x-1">
+                  <ProtectedAction
+                    fallback={
+                      <Button variant="ghost" size="sm" disabled>
+                        <Heart className="h-4 w-4 mr-2" />
+                        {article.like_count}
+                      </Button>
+                    }
+                  >
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleLike(article.id)}
+                    >
+                      <Heart className="h-4 w-4 mr-2" />
+                      {article.like_count}
+                    </Button>
+                  </ProtectedAction>
+
+                  <ProtectedAction
+                    fallback={
+                      <Button variant="ghost" size="sm" disabled>
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                        댓글
+                      </Button>
+                    }
+                  >
+                    <Button variant="ghost" size="sm">
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      댓글
+                    </Button>
+                  </ProtectedAction>
+                </div>
+
+                <div className="flex items-center space-x-1">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => handleShare(article)}
+                  >
+                    <Share2 className="h-4 w-4 mr-2" />
+                    공유
+                  </Button>
+
+                  <ProtectedAction
+                    fallback={
+                      <Button variant="ghost" size="sm" disabled>
+                        <Bookmark className="h-4 w-4" />
+                      </Button>
+                    }
+                  >
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleBookmark(article.id)}
+                    >
+                      <Bookmark className="h-4 w-4" />
+                    </Button>
+                  </ProtectedAction>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {articles.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground text-lg">아직 등록된 뉴스가 없습니다.</p>
+        </div>
+      )}
     </div>
-  )
-}
+  );
+};
+
+export default News;
