@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Heart, MessageCircle, Share2, Bookmark, Clock, Eye, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ProtectedAction, GuestPrompt } from "@/components/auth/ProtectedAction";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -144,9 +145,11 @@ const News = () => {
               {/* 제목과 메타 정보 */}
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-4">
-                  <h2 className="text-xl font-semibold leading-tight group-hover:text-primary transition-colors">
-                    {article.title}
-                  </h2>
+                  <Link to={`/news/${article.id}`}>
+                    <h2 className="text-xl font-semibold leading-tight group-hover:text-primary transition-colors cursor-pointer">
+                      {article.title}
+                    </h2>
+                  </Link>
                   {article.source_url && (
                     <Button variant="ghost" size="sm" asChild>
                       <a href={article.source_url} target="_blank" rel="noopener noreferrer">

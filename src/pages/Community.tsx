@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Link } from "react-router-dom"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -111,7 +112,11 @@ export default function Community() {
           </div>
         </div>
         
-        <CardTitle className="line-clamp-2">{post.title}</CardTitle>
+        <Link to={`/community/post/${post.id}`}>
+          <CardTitle className="line-clamp-2 hover:text-primary transition-colors cursor-pointer">
+            {post.title}
+          </CardTitle>
+        </Link>
         <CardDescription className="line-clamp-3">
           {post.content_simplified}
         </CardDescription>
@@ -154,8 +159,10 @@ export default function Community() {
               </div>
             </div>
             
-            <Button variant="ghost" size="sm">
-              자세히 보기
+            <Button variant="ghost" size="sm" asChild>
+              <Link to={`/community/post/${post.id}`}>
+                자세히 보기
+              </Link>
             </Button>
           </div>
         </div>
@@ -173,9 +180,11 @@ export default function Community() {
           </p>
         </div>
         
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          새 글 작성
+        <Button asChild>
+          <Link to="/community/write">
+            <Plus className="h-4 w-4 mr-2" />
+            새 글 작성
+          </Link>
         </Button>
       </div>
 

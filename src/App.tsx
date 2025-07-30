@@ -8,7 +8,10 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Index from "./pages/Index";
 import News from "./pages/News";
+import NewsDetail from "./pages/NewsDetail";
 import Community from "./pages/Community";
+import CommunityPost from "./pages/CommunityPost";
+import CommunityWrite from "./pages/CommunityWrite";
 import Search from "./pages/Search";
 import Bookmarks from "./pages/Bookmarks";
 import Settings from "./pages/Settings";
@@ -33,7 +36,10 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/news" element={<News />} />
+                <Route path="/news/:id" element={<NewsDetail />} />
                 <Route path="/community" element={<Community />} />
+                <Route path="/community/write" element={<CommunityWrite />} />
+                <Route path="/community/post/:id" element={<CommunityPost />} />
                 <Route path="/search" element={<Search />} />
                 <Route path="/bookmarks" element={<Bookmarks />} />
                 <Route path="/settings" element={<Settings />} />
