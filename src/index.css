@@ -155,7 +155,8 @@
   /* Modern button variants */
   .btn-gradient {
     background: var(--gradient-primary);
-    @apply text-white border-0 shadow-brand transition-all duration-300 hover:scale-105 hover:shadow-xl;
+    box-shadow: var(--shadow-brand);
+    @apply text-white border-0 transition-all duration-300 hover:scale-105 hover:shadow-xl;
   }
 
   .btn-glass {
