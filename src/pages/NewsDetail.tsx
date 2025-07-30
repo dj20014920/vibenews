@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ProtectedAction, GuestPrompt } from "@/components/auth/ProtectedAction";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
+import TermDetector from "@/components/glossary/TermDetector";
 
 interface NewsArticle {
   id: string;
@@ -385,16 +386,22 @@ const NewsDetail = () => {
           {/* 요약 */}
           <div className="p-4 bg-muted/50 rounded-lg">
             <h3 className="font-semibold mb-2">요약</h3>
-            <p className="text-muted-foreground">{article.summary}</p>
+            <TermDetector 
+              text={article.summary} 
+              contentType="article" 
+              contentId={article.id} 
+            />
           </div>
 
           {/* 본문 */}
           <div className="prose prose-lg max-w-none dark:prose-invert">
-            <div dangerouslySetInnerHTML={{ 
-              __html: simplifiedMode && article.content_simplified 
+            <TermDetector 
+              text={simplifiedMode && article.content_simplified 
                 ? article.content_simplified 
-                : article.content 
-            }} />
+                : article.content} 
+              contentType="article" 
+              contentId={article.id} 
+            />
           </div>
 
           {/* 액션 버튼들 */}

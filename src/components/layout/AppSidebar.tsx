@@ -1,4 +1,4 @@
-import { Home, Newspaper, Users, Search, Bookmark, Settings, Code2, GraduationCap, TrendingUp } from "lucide-react"
+import { Home, Newspaper, Users, Search, Bookmark, Settings, Code2, GraduationCap, TrendingUp, Shield } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
 
 import {
@@ -29,6 +29,10 @@ const toolsItems = [
 const userItems = [
   { title: "북마크", url: "/bookmarks", icon: Bookmark },
   { title: "설정", url: "/settings", icon: Settings },
+]
+
+const adminItems = [
+  { title: "관리자", url: "/admin", icon: Shield },
 ]
 
 export function AppSidebar() {
@@ -86,6 +90,24 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {userItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink to={item.url} className={getNavCls}>
+                      <item.icon className="mr-2 h-4 w-4" />
+                      {state !== "collapsed" && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>관리</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {adminItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} className={getNavCls}>
