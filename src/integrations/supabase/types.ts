@@ -521,6 +521,42 @@ export type Database = {
         }
         Relationships: []
       }
+      plans: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          description: string | null
+          features: Json | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          description?: string | null
+          features?: Json | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          description?: string | null
+          features?: Json | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       reports: {
         Row: {
           article_id: string | null
@@ -627,6 +663,7 @@ export type Database = {
           current_period_start: string | null
           id: string
           metadata: Json | null
+          plan_id: string | null
           provider: string
           provider_customer_id: string | null
           provider_subscription_id: string | null
@@ -643,6 +680,7 @@ export type Database = {
           current_period_start?: string | null
           id?: string
           metadata?: Json | null
+          plan_id?: string | null
           provider: string
           provider_customer_id?: string | null
           provider_subscription_id?: string | null
@@ -659,6 +697,7 @@ export type Database = {
           current_period_start?: string | null
           id?: string
           metadata?: Json | null
+          plan_id?: string | null
           provider?: string
           provider_customer_id?: string | null
           provider_subscription_id?: string | null
@@ -666,7 +705,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tag_follows: {
         Row: {
