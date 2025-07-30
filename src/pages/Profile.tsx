@@ -95,8 +95,8 @@ export default function Profile() {
         supabase.from('community_posts').select('id', { count: 'exact' }).eq('author_id', targetUserId),
         supabase.from('comments').select('id', { count: 'exact' }).eq('author_id', targetUserId),
         supabase.from('likes').select('id', { count: 'exact' }).eq('user_id', targetUserId),
-        supabase.from('follows').select('id', { count: 'exact' }).eq('following_id', targetUserId),
-        supabase.from('follows').select('id', { count: 'exact' }).eq('follower_id', targetUserId)
+        supabase.from('user_follows').select('id', { count: 'exact' }).eq('following_id', targetUserId),
+        supabase.from('user_follows').select('id', { count: 'exact' }).eq('follower_id', targetUserId)
       ])
 
       setStats({
@@ -110,7 +110,7 @@ export default function Profile() {
       // Check if current user is following this profile
       if (user && !isOwnProfile) {
         const { data: followData } = await supabase
-          .from('follows')
+          .from('user_follows')
           .select('id')
           .eq('follower_id', user.id)
           .eq('following_id', targetUserId)
@@ -162,7 +162,7 @@ export default function Profile() {
     try {
       if (isFollowing) {
         const { error } = await supabase
-          .from('follows')
+          .from('user_follows')
           .delete()
           .eq('follower_id', user.id)
           .eq('following_id', targetUserId)
@@ -172,7 +172,7 @@ export default function Profile() {
         setStats(prev => ({ ...prev, followers: prev.followers - 1 }))
       } else {
         const { error } = await supabase
-          .from('follows')
+          .from('user_follows')
           .insert({
             follower_id: user.id,
             following_id: targetUserId

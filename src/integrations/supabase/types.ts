@@ -143,6 +143,7 @@ export type Database = {
       comments: {
         Row: {
           anonymous_author_id: string | null
+          anonymous_author_name: string | null
           article_id: string | null
           author_id: string | null
           content: string
@@ -158,6 +159,7 @@ export type Database = {
         }
         Insert: {
           anonymous_author_id?: string | null
+          anonymous_author_name?: string | null
           article_id?: string | null
           author_id?: string | null
           content: string
@@ -173,6 +175,7 @@ export type Database = {
         }
         Update: {
           anonymous_author_id?: string | null
+          anonymous_author_name?: string | null
           article_id?: string | null
           author_id?: string | null
           content?: string
@@ -220,6 +223,7 @@ export type Database = {
       community_posts: {
         Row: {
           anonymous_author_id: string | null
+          anonymous_author_name: string | null
           author_id: string | null
           comment_count: number | null
           content: string
@@ -239,6 +243,7 @@ export type Database = {
         }
         Insert: {
           anonymous_author_id?: string | null
+          anonymous_author_name?: string | null
           author_id?: string | null
           comment_count?: number | null
           content: string
@@ -258,6 +263,7 @@ export type Database = {
         }
         Update: {
           anonymous_author_id?: string | null
+          anonymous_author_name?: string | null
           author_id?: string | null
           comment_count?: number | null
           content?: string
@@ -590,12 +596,15 @@ export type Database = {
       reports: {
         Row: {
           article_id: string | null
+          auto_hidden: boolean | null
           comment_id: string | null
           created_at: string
           id: string
           moderator_notes: string | null
           post_id: string | null
           reason: string
+          report_details: Json | null
+          report_type: string | null
           reported_user_id: string | null
           reporter_id: string | null
           resolved_at: string | null
@@ -603,12 +612,15 @@ export type Database = {
         }
         Insert: {
           article_id?: string | null
+          auto_hidden?: boolean | null
           comment_id?: string | null
           created_at?: string
           id?: string
           moderator_notes?: string | null
           post_id?: string | null
           reason: string
+          report_details?: Json | null
+          report_type?: string | null
           reported_user_id?: string | null
           reporter_id?: string | null
           resolved_at?: string | null
@@ -616,12 +628,15 @@ export type Database = {
         }
         Update: {
           article_id?: string | null
+          auto_hidden?: boolean | null
           comment_id?: string | null
           created_at?: string
           id?: string
           moderator_notes?: string | null
           post_id?: string | null
           reason?: string
+          report_details?: Json | null
+          report_type?: string | null
           reported_user_id?: string | null
           reporter_id?: string | null
           resolved_at?: string | null
@@ -871,6 +886,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_follows: {
+        Row: {
+          created_at: string | null
+          follower_id: string
+          following_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string | null
+          follower_id: string
+          following_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string | null
+          follower_id?: string
+          following_id?: string
+          id?: string
+        }
+        Relationships: []
+      }
       user_preferences: {
         Row: {
           anonymous_mode_default: boolean | null
@@ -917,6 +953,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string | null
+          display_name: string | null
+          github_username: string | null
+          id: string
+          twitter_username: string | null
+          updated_at: string | null
+          user_id: string
+          website_url: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          github_username?: string | null
+          id?: string
+          twitter_username?: string | null
+          updated_at?: string | null
+          user_id: string
+          website_url?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          github_username?: string | null
+          id?: string
+          twitter_username?: string | null
+          updated_at?: string | null
+          user_id?: string
+          website_url?: string | null
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
