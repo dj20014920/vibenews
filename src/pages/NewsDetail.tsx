@@ -10,6 +10,7 @@ import { ProtectedAction, GuestPrompt } from "@/components/auth/ProtectedAction"
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
 import TermDetector from "@/components/glossary/TermDetector";
+import DOMPurify from "isomorphic-dompurify";
 
 interface NewsArticle {
   id: string;
@@ -396,9 +397,9 @@ const NewsDetail = () => {
           {/* 본문 */}
           <div className="prose prose-lg max-w-none dark:prose-invert">
             <TermDetector 
-              text={simplifiedMode && article.content_simplified 
+              text={DOMPurify.sanitize(simplifiedMode && article.content_simplified 
                 ? article.content_simplified 
-                : article.content} 
+                : article.content)} 
               contentType="article" 
               contentId={article.id} 
             />

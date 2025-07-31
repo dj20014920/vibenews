@@ -10,6 +10,7 @@ import { toast } from "sonner"
 import { Search as SearchIcon, Filter, Calendar, Heart, Eye, MessageCircle, ExternalLink } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import { useAuth } from "@/contexts/AuthContext"
+import DOMPurify from "isomorphic-dompurify"
 
 interface SearchResult {
   id: string
@@ -264,7 +265,7 @@ export default function Search() {
                     <CardContent className="pt-0">
                       <div 
                         className="text-sm text-muted-foreground mb-3 line-clamp-3"
-                        dangerouslySetInnerHTML={{ __html: result.snippet }}
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(result.snippet) }}
                       />
                       
                       <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
