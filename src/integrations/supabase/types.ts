@@ -44,6 +44,39 @@ export type Database = {
         }
         Relationships: []
       }
+      bookmark_folders: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bookmarks: {
         Row: {
           article_id: string | null
@@ -315,6 +348,99 @@ export type Database = {
           created_at?: string
           id?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      content_quality_evaluations: {
+        Row: {
+          auto_hidden: boolean | null
+          content_id: string
+          content_type: string
+          created_at: string
+          credibility_score: number
+          developer_level: string
+          id: string
+          overall_score: number
+          quality_issues: string[] | null
+          recommended_tags: string[] | null
+          relevance_score: number
+          technical_depth: number
+          trending_potential: number
+        }
+        Insert: {
+          auto_hidden?: boolean | null
+          content_id: string
+          content_type: string
+          created_at?: string
+          credibility_score: number
+          developer_level: string
+          id?: string
+          overall_score: number
+          quality_issues?: string[] | null
+          recommended_tags?: string[] | null
+          relevance_score: number
+          technical_depth: number
+          trending_potential: number
+        }
+        Update: {
+          auto_hidden?: boolean | null
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          credibility_score?: number
+          developer_level?: string
+          id?: string
+          overall_score?: number
+          quality_issues?: string[] | null
+          recommended_tags?: string[] | null
+          relevance_score?: number
+          technical_depth?: number
+          trending_potential?: number
+        }
+        Relationships: []
+      }
+      content_simplifications: {
+        Row: {
+          content_id: string
+          content_type: string
+          created_at: string
+          id: string
+          original_summary: string | null
+          original_title: string
+          reading_level: string
+          simplification_notes: string[] | null
+          simplified_summary: string | null
+          simplified_title: string
+          target_level: string | null
+          technical_terms_explained: Json | null
+        }
+        Insert: {
+          content_id: string
+          content_type: string
+          created_at?: string
+          id?: string
+          original_summary?: string | null
+          original_title: string
+          reading_level: string
+          simplification_notes?: string[] | null
+          simplified_summary?: string | null
+          simplified_title: string
+          target_level?: string | null
+          technical_terms_explained?: Json | null
+        }
+        Update: {
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          id?: string
+          original_summary?: string | null
+          original_title?: string
+          reading_level?: string
+          simplification_notes?: string[] | null
+          simplified_summary?: string | null
+          simplified_title?: string
+          target_level?: string | null
+          technical_terms_explained?: Json | null
         }
         Relationships: []
       }
@@ -883,6 +1009,42 @@ export type Database = {
           price_per_month?: number | null
           tool_name?: string
           user_ratings?: Json | null
+        }
+        Relationships: []
+      }
+      trending_scores: {
+        Row: {
+          calculated_at: string
+          content_id: string
+          content_type: string
+          engagement_score: number
+          id: string
+          quality_score: number
+          recency_score: number
+          trending_score: number
+          velocity_score: number
+        }
+        Insert: {
+          calculated_at?: string
+          content_id: string
+          content_type: string
+          engagement_score: number
+          id?: string
+          quality_score: number
+          recency_score: number
+          trending_score: number
+          velocity_score: number
+        }
+        Update: {
+          calculated_at?: string
+          content_id?: string
+          content_type?: string
+          engagement_score?: number
+          id?: string
+          quality_score?: number
+          recency_score?: number
+          trending_score?: number
+          velocity_score?: number
         }
         Relationships: []
       }

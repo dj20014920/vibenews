@@ -42,6 +42,7 @@ import {
   Search
 } from 'lucide-react'
 import { NewsCollector } from '@/components/admin/NewsCollector'
+import { ContentAutomation } from '@/components/admin/ContentAutomation'
 
 interface GlossaryTerm {
   id: string
@@ -285,6 +286,9 @@ export default function Admin() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+      {/* Content Automation */}
+      <ContentAutomation />
+
       {/* News Collector */}
       <NewsCollector />
 
