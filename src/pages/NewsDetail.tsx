@@ -95,14 +95,19 @@ const NewsDetail = () => {
         .from('comments')
         .select(`
           *,
-          author:users(nickname, avatar_url)
+          author:users!comments_author_id_fkey(nickname, avatar_url)
         `)
         .eq('article_id', id)
         .eq('is_hidden', false)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setComments(data || []);
+      // author가 제대로 조인되지 않은 경우 기본값 설정
+      const commentsWithAuthor = data?.map(comment => ({
+        ...comment,
+        author: comment.author || { nickname: comment.anonymous_author_name || '익명', avatar_url: '' }
+      })) || [];
+      setComments(commentsWithAuthor);
     } catch (error) {
       console.error('Error loading comments:', error);
     } finally {

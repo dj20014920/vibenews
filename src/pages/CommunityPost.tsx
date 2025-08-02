@@ -71,7 +71,7 @@ const CommunityPost = () => {
         .from('community_posts')
         .select(`
           *,
-          author:users(nickname, avatar_url)
+          author:users!community_posts_author_id_fkey(nickname, avatar_url)
         `)
         .eq('id', id)
         .eq('is_hidden', false)
@@ -79,7 +79,12 @@ const CommunityPost = () => {
 
       if (error) throw error;
       if (data) {
-        setPost(data);
+        // author가 제대로 조인되지 않은 경우 기본값 설정
+        const postWithAuthor = {
+          ...data,
+          author: data.author || { nickname: data.anonymous_author_name || '익명', avatar_url: '' }
+        };
+        setPost(postWithAuthor);
         // 조회수 증가
         await supabase
           .from('community_posts')
@@ -102,14 +107,19 @@ const CommunityPost = () => {
         .from('comments')
         .select(`
           *,
-          author:users(nickname, avatar_url)
+          author:users!comments_author_id_fkey(nickname, avatar_url)
         `)
         .eq('post_id', id)
         .eq('is_hidden', false)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setComments(data || []);
+      // author가 제대로 조인되지 않은 경우 기본값 설정
+      const commentsWithAuthor = data?.map(comment => ({
+        ...comment,
+        author: comment.author || { nickname: comment.anonymous_author_name || '익명', avatar_url: '' }
+      })) || [];
+      setComments(commentsWithAuthor);
     } catch (error) {
       console.error('Error loading comments:', error);
     } finally {

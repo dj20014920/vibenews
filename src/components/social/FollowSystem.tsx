@@ -183,19 +183,29 @@ export const FollowSystem = ({ userId, showFollowButton = true, showStats = true
     if (!targetUserId) return;
 
     try {
-      const { data, error } = await supabase
+      // 팔로워 ID 목록을 먼저 가져옴
+      const { data: followData, error: followError } = await supabase
         .from('user_follows')
-        .select(`
-          follower:users!user_follows_follower_id_fkey(
-            id, nickname, bio, avatar_url
-          )
-        `)
+        .select('follower_id')
         .eq('following_id', targetUserId);
 
-      if (error) throw error;
+      if (followError) throw followError;
 
-      const followersData = data?.map(item => ({
-        ...item.follower,
+      if (!followData || followData.length === 0) {
+        setFollowers([]);
+        return;
+      }
+
+      // 팔로워 사용자 정보 조회
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, nickname, bio, avatar_url')
+        .in('id', followData.map(f => f.follower_id));
+
+      if (usersError) throw usersError;
+
+      const followersData = usersData?.map(user => ({
+        ...user,
         follower_count: 0,
         following_count: 0,
         post_count: 0
@@ -211,19 +221,29 @@ export const FollowSystem = ({ userId, showFollowButton = true, showStats = true
     if (!targetUserId) return;
 
     try {
-      const { data, error } = await supabase
+      // 팔로잉 ID 목록을 먼저 가져옴
+      const { data: followData, error: followError } = await supabase
         .from('user_follows')
-        .select(`
-          following:users!user_follows_following_id_fkey(
-            id, nickname, bio, avatar_url
-          )
-        `)
+        .select('following_id')
         .eq('follower_id', targetUserId);
 
-      if (error) throw error;
+      if (followError) throw followError;
 
-      const followingData = data?.map(item => ({
-        ...item.following,
+      if (!followData || followData.length === 0) {
+        setFollowing([]);
+        return;
+      }
+
+      // 팔로잉 사용자 정보 조회
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, nickname, bio, avatar_url')
+        .in('id', followData.map(f => f.following_id));
+
+      if (usersError) throw usersError;
+
+      const followingData = usersData?.map(user => ({
+        ...user,
         follower_count: 0,
         following_count: 0,
         post_count: 0

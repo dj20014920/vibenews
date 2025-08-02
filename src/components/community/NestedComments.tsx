@@ -76,7 +76,7 @@ export const NestedComments: React.FC<NestedCommentsProps> = ({
         .from('comments')
         .select(`
           *,
-          author:users!left(nickname, avatar_url)
+          author:users!comments_author_id_fkey(nickname, avatar_url)
         `)
         .eq(postId ? 'post_id' : 'article_id', contentId)
         .eq('is_hidden', false)
@@ -99,6 +99,7 @@ export const NestedComments: React.FC<NestedCommentsProps> = ({
       // 댓글을 트리 구조로 변환
       const commentsWithLikes = commentsData?.map(comment => ({
         ...comment,
+        author: comment.author || { nickname: comment.anonymous_author_name || '익명', avatar_url: '' },
         user_liked: likesData.some(like => like.comment_id === comment.id)
       })) || [];
 
