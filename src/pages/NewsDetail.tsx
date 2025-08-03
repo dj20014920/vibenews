@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ProtectedAction, GuestPrompt } from "@/components/auth/ProtectedAction";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
-import TermDetector from "@/components/glossary/TermDetector";
+import { TermDetector } from "@/components/glossary/TermDetector";
 import DOMPurify from "isomorphic-dompurify";
 
 interface NewsArticle {
@@ -393,8 +393,8 @@ const NewsDetail = () => {
           <div className="p-4 bg-muted/50 rounded-lg">
             <h3 className="font-semibold mb-2">요약</h3>
             <TermDetector 
-              text={article.summary} 
-              contentType="article" 
+              content={article.summary} 
+              contentType="news" 
               contentId={article.id} 
             />
           </div>
@@ -402,10 +402,10 @@ const NewsDetail = () => {
           {/* 본문 */}
           <div className="prose prose-lg max-w-none dark:prose-invert">
             <TermDetector 
-              text={DOMPurify.sanitize(simplifiedMode && article.content_simplified 
+              content={DOMPurify.sanitize(simplifiedMode && article.content_simplified 
                 ? article.content_simplified 
                 : article.content)} 
-              contentType="article" 
+              contentType="news" 
               contentId={article.id} 
             />
           </div>
