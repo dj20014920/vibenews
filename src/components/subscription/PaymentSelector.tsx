@@ -1,144 +1,288 @@
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Check, CreditCard, Globe, MapPin } from "lucide-react";
-import { useSubscription, PAYMENT_PROVIDERS } from "@/hooks/useSubscription";
-import { cn } from "@/lib/utils";
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { CreditCard, Smartphone, Globe, Building } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
-interface PaymentSelectorProps {
-  onPaymentStart?: (provider: string) => void;
+interface PaymentProvider {
+  id: string;
+  name: string;
+  display_name: string;
+  country_codes: string[];
+  currencies: string[];
+  payment_types: string[];
 }
 
-export const PaymentSelector = ({ onPaymentStart }: PaymentSelectorProps) => {
-  const { loading, startPayment } = useSubscription();
-  const [selectedProvider, setSelectedProvider] = useState<string>("stripe");
+interface PaymentSelectorProps {
+  planId: string;
+  onPaymentSuccess?: () => void;
+  className?: string;
+}
 
-  const handlePayment = async () => {
-    await startPayment(selectedProvider);
-    onPaymentStart?.(selectedProvider);
-  };
+export function PaymentSelector({ planId, onPaymentSuccess, className }: PaymentSelectorProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [providers, setProviders] = useState<PaymentProvider[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<string>('');
+  const [userCountry, setUserCountry] = useState<string>('KR');
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
 
-  const getProviderRegion = (provider: any) => {
-    if (provider.is_global) {
-      return { label: "글로벌", icon: Globe, variant: "secondary" as const };
-    } else {
-      return { label: "한국", icon: MapPin, variant: "outline" as const };
+  useEffect(() => {
+    loadPaymentProviders();
+    detectUserCountry();
+  }, []);
+
+  const loadPaymentProviders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('payment_providers')
+        .select('*')
+        .eq('is_active', true)
+        .contains('payment_types', ['subscription']);
+
+      if (error) throw error;
+      setProviders(data || []);
+    } catch (error) {
+      console.error('결제 제공자 로드 실패:', error);
+      toast({
+        title: "오류",
+        description: "결제 방법을 불러오는데 실패했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  return (
-    <div className="space-y-6">
-      {/* 플랜 정보 */}
-      <Card className="border-primary/20">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">프리미엄 월간 구독</CardTitle>
-          <CardDescription>개발자를 위한 최고의 도구와 콘텐츠</CardDescription>
-        </CardHeader>
-        <CardContent className="text-center space-y-4">
-          <div className="text-4xl font-bold text-primary">
-            ₩4,900
-            <span className="text-lg font-normal text-muted-foreground">/월</span>
-          </div>
-          
-          <div className="space-y-2">
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <Check className="h-4 w-4 text-green-500" />
-              프리미엄 콘텐츠 무제한 액세스
-            </div>
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <Check className="h-4 w-4 text-green-500" />
-              광고 없는 깨끗한 경험
-            </div>
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <Check className="h-4 w-4 text-green-500" />
-              우선 고객 지원
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+  const detectUserCountry = async () => {
+    try {
+      // 브라우저 언어 설정으로 국가 추정
+      const language = navigator.language || navigator.languages[0];
+      const countryCode = language.split('-')[1] || 'KR';
+      setUserCountry(countryCode.toUpperCase());
+    } catch (error) {
+      console.error('국가 감지 실패:', error);
+    }
+  };
 
-      {/* 결제 수단 선택 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            결제 수단 선택
-          </CardTitle>
-          <CardDescription>
-            편리한 결제 수단을 선택해주세요. 모든 결제는 안전하게 보호됩니다.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {PAYMENT_PROVIDERS.map((provider) => {
-            const region = getProviderRegion(provider);
-            const RegionIcon = region.icon;
-            
-            return (
-              <div
-                key={provider.id}
-                className={cn(
-                  "flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all",
-                  selectedProvider === provider.id
-                    ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                    : "border-border hover:border-primary/50"
-                )}
-                onClick={() => setSelectedProvider(provider.id)}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="text-2xl">{provider.icon}</div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium">{provider.name}</h3>
-                      <Badge variant={region.variant} className="text-xs">
-                        <RegionIcon className="h-3 w-3 mr-1" />
-                        {region.label}
-                      </Badge>
+  const getProviderIcon = (providerName: string) => {
+    switch (providerName.toLowerCase()) {
+      case 'toss':
+        return <Smartphone className="w-5 h-5 text-blue-500" />;
+      case 'stripe':
+        return <CreditCard className="w-5 h-5 text-purple-500" />;
+      case 'paypal':
+        return <Globe className="w-5 h-5 text-blue-600" />;
+      case 'paypay':
+        return <Smartphone className="w-5 h-5 text-red-500" />;
+      case 'ideal':
+        return <Building className="w-5 h-5 text-orange-500" />;
+      case 'klarna':
+        return <CreditCard className="w-5 h-5 text-pink-500" />;
+      default:
+        return <CreditCard className="w-5 h-5 text-gray-500" />;
+    }
+  };
+
+  const getRecommendedProvider = () => {
+    // 국가별 추천 결제 방식
+    const countryProviderMap: Record<string, string> = {
+      'KR': 'toss',
+      'JP': 'paypay',
+      'NL': 'ideal',
+      'US': 'stripe',
+      'GB': 'stripe',
+      'DE': 'klarna',
+      'FR': 'stripe',
+      'CA': 'stripe',
+      'AU': 'stripe',
+    };
+
+    return countryProviderMap[userCountry] || 'stripe';
+  };
+
+  const getAvailableProviders = () => {
+    return providers.filter(provider => 
+      provider.country_codes.includes(userCountry) ||
+      provider.country_codes.includes('US') // Stripe/PayPal은 대부분 국가 지원
+    );
+  };
+
+  const handlePaymentStart = async () => {
+    if (!selectedProvider || !user) {
+      toast({
+        title: "오류",
+        description: "결제 방법을 선택해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setProcessing(true);
+
+    try {
+      // 선택된 결제 제공자에 따라 다른 Edge Function 호출
+      let functionName = '';
+      switch (selectedProvider) {
+        case 'toss':
+          functionName = 'toss-checkout';
+          break;
+        case 'stripe':
+          functionName = 'stripe-checkout';
+          break;
+        case 'paypal':
+          functionName = 'paypal-checkout';
+          break;
+        default:
+          throw new Error('지원하지 않는 결제 방식입니다.');
+      }
+
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        body: {
+          planId,
+          countryCode: userCountry,
+          successUrl: `${window.location.origin}/subscription/success`,
+          cancelUrl: `${window.location.origin}/subscription/cancel`,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        // 새 탭에서 결제 페이지 열기
+        window.open(data.url, '_blank');
+        
+        toast({
+          title: "결제 창 열림",
+          description: "새 탭에서 결제를 진행해주세요.",
+        });
+
+        // 결제 완료 확인을 위한 폴링 시작
+        startPaymentStatusPolling();
+      }
+    } catch (error) {
+      console.error('결제 시작 실패:', error);
+      toast({
+        title: "결제 오류",
+        description: "결제를 시작하는데 실패했습니다. 다시 시도해주세요.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const startPaymentStatusPolling = () => {
+    const interval = setInterval(async () => {
+      try {
+        const { data } = await supabase
+          .from('user_subscriptions')
+          .select('*')
+          .eq('user_id', user?.id)
+          .eq('status', 'active')
+          .single();
+
+        if (data) {
+          clearInterval(interval);
+          toast({
+            title: "결제 완료",
+            description: "구독이 성공적으로 활성화되었습니다!",
+          });
+          onPaymentSuccess?.();
+        }
+      } catch (error) {
+        // 아직 결제가 완료되지 않음
+      }
+    }, 3000);
+
+    // 5분 후 폴링 중단
+    setTimeout(() => clearInterval(interval), 300000);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const availableProviders = getAvailableProviders();
+  const recommendedProvider = getRecommendedProvider();
+
+  return (
+    <Card className={className}>
+      <CardHeader>
+        <CardTitle>결제 방법 선택</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          안전하고 편리한 결제 방법을 선택하세요
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <RadioGroup value={selectedProvider} onValueChange={setSelectedProvider}>
+          {availableProviders.map((provider) => (
+            <div key={provider.id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors">
+              <RadioGroupItem value={provider.name} id={provider.name} />
+              <Label htmlFor={provider.name} className="flex-1 cursor-pointer">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    {getProviderIcon(provider.name)}
+                    <div>
+                      <p className="font-medium">{provider.display_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {provider.currencies.join(', ')} 지원
+                      </p>
                     </div>
-                    <p className="text-sm text-muted-foreground">{provider.description}</p>
                   </div>
-                </div>
-                
-                <div className={cn(
-                  "w-4 h-4 rounded-full border-2 transition-all",
-                  selectedProvider === provider.id
-                    ? "border-primary bg-primary"
-                    : "border-muted-foreground"
-                )}>
-                  {selectedProvider === provider.id && (
-                    <Check className="h-2 w-2 text-primary-foreground m-0.5" />
+                  {provider.name === recommendedProvider && (
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                      추천
+                    </Badge>
                   )}
                 </div>
-              </div>
-            );
-          })}
-        </CardContent>
-      </Card>
+              </Label>
+            </div>
+          ))}
+        </RadioGroup>
 
-      <Separator />
+        {availableProviders.length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">
+              현재 지역에서 사용 가능한 결제 방법이 없습니다.
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              고객 지원팀에 문의해주세요.
+            </p>
+          </div>
+        )}
 
-      {/* 결제 버튼 */}
-      <div className="space-y-4">
-        <Button
-          onClick={handlePayment}
-          disabled={loading}
-          size="lg"
-          className="w-full text-lg py-6"
-        >
-          {loading ? (
-            "결제 준비 중..."
-          ) : (
-            `${PAYMENT_PROVIDERS.find(p => p.id === selectedProvider)?.name}로 결제하기`
-          )}
-        </Button>
-        
-        <p className="text-xs text-muted-foreground text-center">
-          결제 시 <strong>이용약관</strong> 및 <strong>개인정보처리방침</strong>에 동의하게 됩니다.
-          <br />
-          언제든지 구독을 취소할 수 있으며, 취소 시 현재 결제 기간 종료까지 서비스를 이용할 수 있습니다.
-        </p>
-      </div>
-    </div>
+        <div className="flex flex-col gap-2 pt-4">
+          <Button
+            onClick={handlePaymentStart}
+            disabled={!selectedProvider || processing || availableProviders.length === 0}
+            className="w-full"
+          >
+            {processing ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                결제 처리 중...
+              </>
+            ) : (
+              '결제 시작하기'
+            )}
+          </Button>
+          
+          <p className="text-xs text-muted-foreground text-center">
+            결제 진행 시 새 탭에서 안전한 결제 페이지로 이동합니다
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   );
-};
+}

@@ -1,265 +1,284 @@
-import { useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { AlertCircle, Calendar, Check, CreditCard, Crown, RefreshCw, X } from "lucide-react";
-import { useSubscription } from "@/hooks/useSubscription";
-import { formatDistanceToNow } from "date-fns";
-import { ko } from "date-fns/locale";
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Crown, Sparkles, Building, AlertCircle, RefreshCw } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
-interface SubscriptionStatusProps {
-  showPaymentOptions?: boolean;
-  onManageSubscription?: () => void;
+interface SubscriptionPlan {
+  id: string;
+  name: string;
+  description: string;
+  price_monthly: number;
+  price_yearly: number;
+  currency: string;
+  features: any; // JSON 타입으로 수정
 }
 
-export const SubscriptionStatus = ({ 
-  showPaymentOptions = false, 
-  onManageSubscription 
-}: SubscriptionStatusProps) => {
-  const { status, loading, checkSubscriptionStatus, cancelSubscription } = useSubscription();
+interface UserSubscription {
+  id: string;
+  plan_id: string;
+  status: string;
+  payment_provider: string;
+  start_date: string;
+  end_date: string;
+  auto_renew: boolean;
+  subscription_plans: SubscriptionPlan;
+}
 
-  // 컴포넌트 마운트 시 상태 확인
+export function SubscriptionStatus() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [subscription, setSubscription] = useState<UserSubscription | null>(null);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
   useEffect(() => {
-    checkSubscriptionStatus();
-  }, [checkSubscriptionStatus]);
-
-  const getStatusBadge = () => {
-    if (!status.is_subscribed) {
-      return (
-        <Badge variant="secondary" className="gap-1">
-          <X className="h-3 w-3" />
-          구독 없음
-        </Badge>
-      );
+    if (user) {
+      loadSubscriptionData();
     }
+  }, [user]);
 
-    if (status.days_remaining <= 3) {
-      return (
-        <Badge variant="destructive" className="gap-1">
-          <AlertCircle className="h-3 w-3" />
-          곧 만료
-        </Badge>
-      );
+  const loadSubscriptionData = async () => {
+    try {
+      // 구독 플랜 정보 로드
+      const { data: plansData, error: plansError } = await supabase
+        .from('subscription_plans')
+        .select('*')
+        .eq('is_active', true)
+        .order('price_monthly');
+
+      if (plansError) throw plansError;
+      setPlans(plansData || []);
+
+      // 사용자 구독 정보 로드
+      if (user) {
+        const { data: subData, error: subError } = await supabase
+          .from('user_subscriptions')
+          .select(`
+            *,
+            subscription_plans (*)
+          `)
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .single();
+
+        if (subError && subError.code !== 'PGRST116') {
+          throw subError;
+        }
+        
+        setSubscription(subData);
+      }
+    } catch (error) {
+      console.error('구독 정보 로드 실패:', error);
+      toast({
+        title: "오류",
+        description: "구독 정보를 불러오는데 실패했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
+  };
 
+  const refreshSubscriptionStatus = async () => {
+    setRefreshing(true);
+    await loadSubscriptionData();
+    setRefreshing(false);
+    toast({
+      title: "새로고침 완료",
+      description: "구독 상태가 업데이트되었습니다.",
+    });
+  };
+
+  const getPlanIcon = (planName: string) => {
+    switch (planName.toLowerCase()) {
+      case 'basic':
+        return <Sparkles className="w-5 h-5 text-blue-500" />;
+      case 'premium':
+        return <Crown className="w-5 h-5 text-purple-500" />;
+      case 'enterprise':
+        return <Building className="w-5 h-5 text-orange-500" />;
+      default:
+        return <AlertCircle className="w-5 h-5 text-gray-500" />;
+    }
+  };
+
+  const getPlanBadgeColor = (planName: string) => {
+    switch (planName.toLowerCase()) {
+      case 'basic':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      case 'premium':
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+      case 'enterprise':
+        return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+    }
+  };
+
+  const formatPrice = (price: number, currency: string) => {
+    return new Intl.NumberFormat('ko-KR', {
+      style: 'currency',
+      currency: currency,
+    }).format(price / 100);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  if (loading) {
     return (
-      <Badge variant="default" className="gap-1">
-        <Check className="h-3 w-3" />
-        활성
-      </Badge>
-    );
-  };
-
-  const getProviderIcon = (provider: string | null) => {
-    switch (provider) {
-      case "stripe": return "💳";
-      case "paypal": return "🅿️";
-      case "kakaopay": return "💛";
-      case "toss": return "💙";
-      default: return "💳";
-    }
-  };
-
-  const getProviderName = (provider: string | null) => {
-    switch (provider) {
-      case "stripe": return "Stripe";
-      case "paypal": return "PayPal";
-      case "kakaopay": return "카카오페이";
-      case "toss": return "토스페이먼츠";
-      default: return "알 수 없음";
-    }
-  };
-
-  if (loading && !status.current_subscription) {
-    return (
-      <Card>
-        <CardContent className="flex items-center justify-center p-8">
-          <RefreshCw className="h-6 w-6 animate-spin mr-2" />
-          구독 상태 확인 중...
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* 메인 구독 상태 카드 */}
-      <Card className={status.is_subscribed ? "border-primary/20" : "border-muted"}>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <div className="space-y-1">
-            <CardTitle className="flex items-center gap-2">
-              {status.is_subscribed ? (
-                <Crown className="h-5 w-5 text-primary" />
-              ) : (
-                <CreditCard className="h-5 w-5 text-muted-foreground" />
-              )}
-              {status.is_subscribed ? "프리미엄 구독자" : "무료 사용자"}
-            </CardTitle>
-            <CardDescription>
-              {status.is_subscribed
-                ? `현재 ${status.subscription_tier} 플랜을 이용 중입니다`
-                : "프리미엄 구독으로 더 많은 기능을 이용해보세요"}
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            {getStatusBadge()}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={checkSubscriptionStatus}
-              disabled={loading}
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            </Button>
-          </div>
+      {/* 현재 구독 상태 */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-lg font-semibold">현재 구독</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refreshSubscriptionStatus}
+            disabled={refreshing}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            새로고침
+          </Button>
         </CardHeader>
+        <CardContent>
+          {subscription ? (
+            <div className="space-y-4">
+              <div className="flex items-center space-x-3">
+                {getPlanIcon(subscription.subscription_plans.name)}
+                <div>
+                  <h3 className="font-semibold text-lg">{subscription.subscription_plans.name} 플랜</h3>
+                  <p className="text-sm text-muted-foreground">{subscription.subscription_plans.description}</p>
+                </div>
+                <Badge className={getPlanBadgeColor(subscription.subscription_plans.name)}>
+                  활성
+                </Badge>
+              </div>
 
-        {status.is_subscribed && (
-          <CardContent className="space-y-4">
-            {/* 구독 정보 */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">결제 수단</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">{getProviderIcon(status.provider)}</span>
-                  <span className="font-medium">{getProviderName(status.provider)}</span>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium">시작일:</span>
+                  <p className="text-muted-foreground">{formatDate(subscription.start_date)}</p>
+                </div>
+                <div>
+                  <span className="font-medium">만료일:</span>
+                  <p className="text-muted-foreground">{formatDate(subscription.end_date)}</p>
+                </div>
+                <div>
+                  <span className="font-medium">결제 방식:</span>
+                  <p className="text-muted-foreground">{subscription.payment_provider}</p>
+                </div>
+                <div>
+                  <span className="font-medium">자동 갱신:</span>
+                  <p className="text-muted-foreground">{subscription.auto_renew ? '활성' : '비활성'}</p>
                 </div>
               </div>
-              
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">다음 결제일</p>
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">
-                    {status.subscription_end 
-                      ? formatDistanceToNow(new Date(status.subscription_end), { 
-                          addSuffix: true, 
-                          locale: ko 
-                        })
-                      : "정보 없음"
-                    }
-                  </span>
-                </div>
-              </div>
-              
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">남은 일수</p>
-                <span className="font-medium text-2xl">
-                  {status.days_remaining}
-                  <span className="text-sm font-normal text-muted-foreground ml-1">일</span>
-                </span>
-              </div>
-            </div>
 
-            {/* 구독 기능 */}
-            {status.features.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium">포함된 기능</p>
-                <div className="flex flex-wrap gap-2">
-                  {status.features.map((feature, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      <Check className="h-3 w-3 mr-1" />
+              <div>
+                <h4 className="font-medium mb-2">포함된 기능:</h4>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  {(Array.isArray(subscription.subscription_plans.features) ? subscription.subscription_plans.features : []).map((feature, index) => (
+                    <li key={index} className="flex items-center">
+                      <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
                       {feature}
-                    </Badge>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
-            )}
-
-            <Separator />
-
-            {/* 구독 관리 버튼 */}
-            <div className="flex gap-2">
-              {onManageSubscription && (
-                <Button 
-                  variant="outline" 
-                  onClick={onManageSubscription}
-                  className="flex-1"
-                >
-                  구독 관리
-                </Button>
-              )}
-              
-              {status.current_subscription && (
-                <Button
-                  variant="outline"
-                  onClick={() => cancelSubscription(
-                    status.current_subscription.id, 
-                    status.provider || "unknown"
-                  )}
-                  disabled={loading}
-                  className="text-destructive hover:text-destructive"
-                >
-                  구독 취소
-                </Button>
-              )}
             </div>
-          </CardContent>
-        )}
+          ) : (
+            <div className="text-center py-8">
+              <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">활성 구독이 없습니다</h3>
+              <p className="text-muted-foreground mb-4">
+                프리미엄 기능을 이용하려면 구독을 시작하세요.
+              </p>
+              <Button>구독 시작하기</Button>
+            </div>
+          )}
+        </CardContent>
       </Card>
 
-      {/* 무료 사용자에게 프리미엄 안내 */}
-      {!status.is_subscribed && showPaymentOptions && (
-        <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Crown className="h-5 w-5 text-primary" />
-              프리미엄으로 업그레이드
-            </CardTitle>
-            <CardDescription>
-              더 많은 도구와 콘텐츠를 unlimited로 이용해보세요
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-green-500" />
-                프리미엄 콘텐츠 무제한
+      {/* 사용 가능한 구독 플랜 */}
+      <div className="grid md:grid-cols-3 gap-6">
+        {plans.map((plan) => (
+          <Card key={plan.id} className={`relative ${
+            subscription?.plan_id === plan.id 
+              ? 'border-primary shadow-lg' 
+              : 'hover:shadow-md transition-shadow'
+          }`}>
+            {subscription?.plan_id === plan.id && (
+              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                <Badge className={getPlanBadgeColor(plan.name)}>
+                  현재 플랜
+                </Badge>
               </div>
-              <div className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-green-500" />
-                광고 없는 경험
-              </div>
-              <div className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-green-500" />
-                우선 고객 지원
-              </div>
-              <div className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-green-500" />
-                독점 도구 액세스
-              </div>
-            </div>
+            )}
             
-            <Button className="w-full" size="lg">
-              지금 구독하기 - ₩4,900/월
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 전체 구독 내역 (개발자 정보) */}
-      {status.all_subscriptions.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">구독 내역</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {status.all_subscriptions.map((sub, index) => (
-                <div key={index} className="flex justify-between items-center text-xs p-2 bg-muted rounded">
-                  <span>
-                    {getProviderIcon(sub.provider)} {getProviderName(sub.provider)} - {sub.status}
-                  </span>
-                  <span className="text-muted-foreground">
-                    {sub.created_at && formatDistanceToNow(new Date(sub.created_at), { locale: ko })} 전
-                  </span>
+            <CardHeader className="text-center">
+              <div className="flex justify-center mb-2">
+                {getPlanIcon(plan.name)}
+              </div>
+              <CardTitle className="text-xl">{plan.name}</CardTitle>
+              <p className="text-sm text-muted-foreground">{plan.description}</p>
+              <div className="space-y-1">
+                <div className="text-2xl font-bold">
+                  {formatPrice(plan.price_monthly, plan.currency)}
+                  <span className="text-sm font-normal text-muted-foreground">/월</span>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                {plan.price_yearly && (
+                  <div className="text-sm text-muted-foreground">
+                    연간: {formatPrice(plan.price_yearly, plan.currency)}
+                    <span className="text-green-600 ml-1">
+                      ({Math.round((1 - plan.price_yearly / (plan.price_monthly * 12)) * 100)}% 할인)
+                    </span>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            
+            <CardContent>
+              <ul className="space-y-2 mb-6">
+                {(Array.isArray(plan.features) ? plan.features : []).map((feature, index) => (
+                  <li key={index} className="flex items-center text-sm">
+                    <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+              
+              <Button 
+                className="w-full" 
+                variant={subscription?.plan_id === plan.id ? "outline" : "default"}
+                disabled={subscription?.plan_id === plan.id}
+              >
+                {subscription?.plan_id === plan.id 
+                  ? '현재 플랜' 
+                  : `${plan.name} 시작하기`
+                }
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
-};
+}
