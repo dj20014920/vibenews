@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { Eye, Heart, MessageSquare, Clock, TrendingUp, Sparkles, Code2, Users } from 'lucide-react'
+import { Eye, Heart, MessageSquare, Clock, TrendingUp, Sparkles, Code2, Users, Crown, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface NewsArticle {
@@ -354,8 +354,73 @@ export default function Index() {
           </div>
         </section>
 
+        {/* Premium Features Section */}
+        <section className="text-center py-12 space-y-8 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5 rounded-3xl">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium">
+              <Crown className="h-4 w-4" />
+              Premium 기능
+            </div>
+            <h2 className="text-3xl font-bold tracking-tight">
+              AI 코딩의 새로운 차원을 경험하세요
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              프리미엄 구독으로 더 강력한 AI 기능과 무제한 액세스를 누려보세요
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto mt-8">
+            <div className="text-center space-y-3">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 text-blue-600 rounded-lg">
+                <Sparkles className="h-6 w-6" />
+              </div>
+              <h3 className="font-semibold">고급 AI 설명</h3>
+              <p className="text-sm text-muted-foreground">
+                복잡한 코드도 쉽게 이해할 수 있는 상세한 AI 설명
+              </p>
+            </div>
+            
+            <div className="text-center space-y-3">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-purple-100 text-purple-600 rounded-lg">
+                <TrendingUp className="h-6 w-6" />
+              </div>
+              <h3 className="font-semibold">무제한 액세스</h3>
+              <p className="text-sm text-muted-foreground">
+                모든 기능에 무제한으로 액세스하고 제한 없이 사용
+              </p>
+            </div>
+            
+            <div className="text-center space-y-3">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-gold-100 text-gold-600 rounded-lg">
+                <Users className="h-6 w-6" />
+              </div>
+              <h3 className="font-semibold">우선 지원</h3>
+              <p className="text-sm text-muted-foreground">
+                전담 팀의 빠른 응답과 개인화된 지원 서비스
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+            <Button asChild size="lg" className="btn-gradient">
+              <Link to="/subscription">
+                <Crown className="mr-2 h-5 w-5" />
+                프리미엄 시작하기
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link to="/auth">
+                무료로 시작하기
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
+            </Button>
+          </div>
+        </section>
+
+        <Separator className="my-12" />
+
         {/* Call to Action */}
-        <section className="text-center py-16 space-y-6 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5 rounded-3xl">
+        <section className="text-center py-16 space-y-6">
           <div className="space-y-2">
             <h2 className="text-3xl font-bold tracking-tight">
               바이브 코딩 커뮤니티에 합류하세요

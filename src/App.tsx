@@ -21,6 +21,7 @@ import Tools from "./pages/Tools";
 import Learning from "./pages/Learning";
 import Trends from "./pages/Trends";
 import Admin from "./pages/Admin";
+import Subscription from "./pages/Subscription";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -50,6 +51,7 @@ const App = () => (
                 <Route path="/tools" element={<Tools />} />
                 <Route path="/learning" element={<Learning />} />
                 <Route path="/trends" element={<Trends />} />
+                <Route path="/subscription" element={<Subscription />} />
                 <Route path="/admin" element={<Admin />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />

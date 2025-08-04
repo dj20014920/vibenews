@@ -1,4 +1,4 @@
-import { Home, Newspaper, Users, Search, Bookmark, Settings, Code2, GraduationCap, TrendingUp, Shield } from "lucide-react"
+import { Home, Newspaper, Users, Search, Bookmark, Settings, Code2, GraduationCap, TrendingUp, Shield, Crown } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
 
 import {
@@ -28,6 +28,7 @@ const toolsItems = [
 
 const userItems = [
   { title: "북마크", url: "/bookmarks", icon: Bookmark },
+  { title: "구독", url: "/subscription", icon: Crown },
   { title: "설정", url: "/settings", icon: Settings },
 ]
 

@@ -3,11 +3,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
-import { CreditCard, Smartphone, Globe, Building } from 'lucide-react';
+import { RadioGroup } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
+import { PaymentProviderCard } from './PaymentProviderCard';
+import { useCountryDetector } from './CountryDetector';
 
 interface PaymentProvider {
   id: string;
@@ -27,15 +26,14 @@ interface PaymentSelectorProps {
 export function PaymentSelector({ planId, onPaymentSuccess, className }: PaymentSelectorProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { userCountry, getRecommendedProvider } = useCountryDetector();
   const [providers, setProviders] = useState<PaymentProvider[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>('');
-  const [userCountry, setUserCountry] = useState<string>('KR');
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     loadPaymentProviders();
-    detectUserCountry();
   }, []);
 
   const loadPaymentProviders = async () => {
@@ -60,52 +58,6 @@ export function PaymentSelector({ planId, onPaymentSuccess, className }: Payment
     }
   };
 
-  const detectUserCountry = async () => {
-    try {
-      // 브라우저 언어 설정으로 국가 추정
-      const language = navigator.language || navigator.languages[0];
-      const countryCode = language.split('-')[1] || 'KR';
-      setUserCountry(countryCode.toUpperCase());
-    } catch (error) {
-      console.error('국가 감지 실패:', error);
-    }
-  };
-
-  const getProviderIcon = (providerName: string) => {
-    switch (providerName.toLowerCase()) {
-      case 'toss':
-        return <Smartphone className="w-5 h-5 text-blue-500" />;
-      case 'stripe':
-        return <CreditCard className="w-5 h-5 text-purple-500" />;
-      case 'paypal':
-        return <Globe className="w-5 h-5 text-blue-600" />;
-      case 'paypay':
-        return <Smartphone className="w-5 h-5 text-red-500" />;
-      case 'ideal':
-        return <Building className="w-5 h-5 text-orange-500" />;
-      case 'klarna':
-        return <CreditCard className="w-5 h-5 text-pink-500" />;
-      default:
-        return <CreditCard className="w-5 h-5 text-gray-500" />;
-    }
-  };
-
-  const getRecommendedProvider = () => {
-    // 국가별 추천 결제 방식
-    const countryProviderMap: Record<string, string> = {
-      'KR': 'toss',
-      'JP': 'paypay',
-      'NL': 'ideal',
-      'US': 'stripe',
-      'GB': 'stripe',
-      'DE': 'klarna',
-      'FR': 'stripe',
-      'CA': 'stripe',
-      'AU': 'stripe',
-    };
-
-    return countryProviderMap[userCountry] || 'stripe';
-  };
 
   const getAvailableProviders = () => {
     return providers.filter(provider => 
@@ -227,27 +179,11 @@ export function PaymentSelector({ planId, onPaymentSuccess, className }: Payment
       <CardContent className="space-y-4">
         <RadioGroup value={selectedProvider} onValueChange={setSelectedProvider}>
           {availableProviders.map((provider) => (
-            <div key={provider.id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors">
-              <RadioGroupItem value={provider.name} id={provider.name} />
-              <Label htmlFor={provider.name} className="flex-1 cursor-pointer">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    {getProviderIcon(provider.name)}
-                    <div>
-                      <p className="font-medium">{provider.display_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {provider.currencies.join(', ')} 지원
-                      </p>
-                    </div>
-                  </div>
-                  {provider.name === recommendedProvider && (
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                      추천
-                    </Badge>
-                  )}
-                </div>
-              </Label>
-            </div>
+            <PaymentProviderCard
+              key={provider.id}
+              provider={provider}
+              isRecommended={provider.name === recommendedProvider}
+            />
           ))}
         </RadioGroup>
 
