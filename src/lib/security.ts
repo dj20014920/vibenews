@@ -26,11 +26,22 @@ const SUSPICIOUS_PATTERNS = [
 
 // 패스워드 강도 체크
 export const checkPasswordStrength = (password: string) => {
+  const defaultChecks = {
+    hasLower: false,
+    hasUpper: false,
+    hasNumber: false,
+    hasSymbol: false,
+    hasLength: false,
+    noSequential: false,
+    noRepeated: false,
+  };
+
   if (!password || password.length < SECURITY_CONFIG.PASSWORD_MIN_LENGTH) {
     return {
       score: 0,
       message: `비밀번호는 최소 ${SECURITY_CONFIG.PASSWORD_MIN_LENGTH}자 이상이어야 합니다.`,
       isValid: false,
+      checks: defaultChecks,
     };
   }
 
@@ -39,6 +50,7 @@ export const checkPasswordStrength = (password: string) => {
       score: 0,
       message: `비밀번호는 최대 ${SECURITY_CONFIG.PASSWORD_MAX_LENGTH}자까지 가능합니다.`,
       isValid: false,
+      checks: defaultChecks,
     };
   }
 
