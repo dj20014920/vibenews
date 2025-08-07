@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,111 +9,43 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Github, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EnhancedAuthForm } from "@/components/auth/EnhancedAuthForm";
+import { EmailVerificationStatus } from "@/components/auth/EmailVerificationStatus";
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    nickname: "",
-  });
-  
+  const [searchParams] = useSearchParams();
   const { user, signIn, signUp, signInWithProvider } = useAuth();
   const { toast } = useToast();
 
+  // 이메일 인증 관련 파라미터 확인
+  const isVerificationPage = searchParams.has('verified') || searchParams.has('error');
+
   // 로그인된 사용자는 홈으로 리다이렉트
-  if (user) {
+  if (user && !isVerificationPage) {
     return <Navigate to="/" replace />;
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
+  // 인증 상태 페이지 표시
+  if (isVerificationPage) {
+    return <EmailVerificationStatus />;
+  }
 
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.email || !formData.password) {
-      toast({
-        title: "입력 오류",
-        description: "이메일과 비밀번호를 입력해주세요.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  // Enhanced Auth Form 전용 핸들러
+  const handleEnhancedSignIn = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const { error } = await signIn(formData.email, formData.password);
-      if (error) {
-        let message = "로그인에 실패했습니다.";
-        if (error.message.includes("Invalid login credentials")) {
-          message = "이메일 또는 비밀번호가 올바르지 않습니다.";
-        } else if (error.message.includes("Email not confirmed")) {
-          message = "이메일 인증을 완료해주세요.";
-        }
-        toast({
-          title: "로그인 실패",
-          description: message,
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "로그인 실패",
-        description: "예상치 못한 오류가 발생했습니다.",
-        variant: "destructive",
-      });
+      const result = await signIn(email, password);
+      return result;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.email || !formData.password || !formData.nickname) {
-      toast({
-        title: "입력 오류",
-        description: "모든 필드를 입력해주세요.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      toast({
-        title: "비밀번호 오류",
-        description: "비밀번호는 6자 이상이어야 합니다.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleEnhancedSignUp = async (email: string, password: string, nickname?: string) => {
     setIsLoading(true);
     try {
-      const { error } = await signUp(formData.email, formData.password, formData.nickname);
-      if (error) {
-        let message = "회원가입에 실패했습니다.";
-        if (error.message.includes("User already registered")) {
-          message = "이미 등록된 이메일입니다.";
-        } else if (error.message.includes("Password should be")) {
-          message = "비밀번호는 6자 이상이어야 합니다.";
-        }
-        toast({
-          title: "회원가입 실패",
-          description: message,
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "회원가입 실패",
-        description: "예상치 못한 오류가 발생했습니다.",
-        variant: "destructive",
-      });
+      const result = await signUp(email, password, nickname || '');
+      return result;
     } finally {
       setIsLoading(false);
     }
@@ -163,7 +95,7 @@ const Auth = () => {
             <TabsContent value="signin" className="space-y-4">
               <EnhancedAuthForm 
                 mode="signin"
-                onSubmit={async (email, password) => await signIn(email, password)}
+                onSubmit={handleEnhancedSignIn}
                 isLoading={isLoading}
               />
             </TabsContent>
@@ -171,7 +103,7 @@ const Auth = () => {
             <TabsContent value="signup" className="space-y-4">
               <EnhancedAuthForm 
                 mode="signup"
-                onSubmit={async (email, password, nickname) => await signUp(email, password, nickname || '')}
+                onSubmit={handleEnhancedSignUp}
                 isLoading={isLoading}
               />
             </TabsContent>

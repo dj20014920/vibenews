@@ -156,18 +156,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (error) {
+        // 친화적인 에러 메시지
+        let message = "로그인에 실패했습니다.";
+        if (error.message.includes("Invalid login credentials")) {
+          message = "이메일 또는 비밀번호가 올바르지 않습니다.";
+        } else if (error.message.includes("Email not confirmed")) {
+          message = "이메일 인증을 완료해주세요. 인증 메일을 확인하세요.";
+        } else if (error.message.includes("Account not found")) {
+          message = "등록되지 않은 이메일입니다. 회원가입을 먼저 진행해주세요.";
+        } else if (error.message.includes("Too many requests")) {
+          message = "너무 많은 시도입니다. 잠시 후 다시 시도해주세요.";
+        } else if (error.message.includes("Invalid password")) {
+          message = "비밀번호가 올바르지 않습니다.";
+        }
+        
         toast({
           title: "로그인 실패",
-          description: error.message,
+          description: message,
           variant: "destructive",
         });
         return { error };
       }
 
       if (data.user) {
+        const welcomeMessages = [
+          "다시 만나서 반가워요! 👋",
+          "환영합니다! 🎉",
+          "로그인 성공! ✨",
+          "좋은 하루 되세요! 😊"
+        ];
+        const randomMessage = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
+        
         toast({
           title: "로그인 성공",
-          description: "환영합니다!",
+          description: randomMessage,
         });
       }
 
@@ -176,7 +198,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const err = error as Error;
       toast({
         title: "로그인 실패",
-        description: err.message,
+        description: "예상치 못한 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
         variant: "destructive",
       });
       return { error: err };
@@ -187,7 +209,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       cleanupAuthState();
       
-      const redirectUrl = `${window.location.origin}/`;
+      const redirectUrl = `${window.location.origin}/auth?verified=true`;
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -196,28 +218,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           emailRedirectTo: redirectUrl,
           data: {
             nickname: nickname,
+            signup_source: 'web'
           }
         }
       });
 
       if (error) {
+        // 친화적인 에러 메시지
+        let message = "회원가입에 실패했습니다.";
+        if (error.message.includes("User already registered")) {
+          message = "이미 등록된 이메일입니다. 로그인을 시도해보세요.";
+        } else if (error.message.includes("Password should be")) {
+          message = "비밀번호는 6자 이상이어야 합니다.";
+        } else if (error.message.includes("Invalid email")) {
+          message = "올바르지 않은 이메일 형식입니다.";
+        } else if (error.message.includes("Signup is disabled")) {
+          message = "현재 회원가입이 비활성화되어 있습니다.";
+        }
+        
         toast({
           title: "회원가입 실패",
-          description: error.message,
+          description: message,
           variant: "destructive",
         });
         return { error };
       }
 
+      // 이메일 확인 필요한 경우
       if (data.user && !data.session) {
         toast({
-          title: "회원가입 완료",
-          description: "이메일 확인 후 로그인해주세요.",
+          title: "회원가입 완료! 📧",
+          description: "이메일로 전송된 인증 링크를 클릭하여 계정을 활성화해주세요.",
         });
-      } else if (data.session) {
+      } 
+      // 즉시 로그인되는 경우 (이메일 확인 비활성화된 경우)
+      else if (data.session) {
         toast({
-          title: "회원가입 성공",
-          description: "환영합니다!",
+          title: "회원가입 성공! 🎉",
+          description: "환영합니다! 바로 서비스를 이용하실 수 있습니다.",
         });
       }
 
@@ -226,7 +264,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const err = error as Error;
       toast({
         title: "회원가입 실패",
-        description: err.message,
+        description: "예상치 못한 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
         variant: "destructive",
       });
       return { error: err };

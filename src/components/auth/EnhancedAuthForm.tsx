@@ -107,27 +107,22 @@ export const EnhancedAuthForm = ({ mode, onSubmit, isLoading }: EnhancedAuthForm
   // 보안 알림 전송
   const sendSecurityAlert = async (alertType: string, additionalData?: any) => {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL || 'https://zcgkygxcyuupexiyrvdz.supabase.co'}/functions/v1/enhanced-auth-emails/security-alert`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjZ2t5Z3hjeXV1cGV4aXlydmR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3NjYwMDgsImV4cCI6MjA2OTM0MjAwOH0.YitOBBcjo_wc3V60EEqBzPImgz0w_fbidXvIWI8uMxk'}`,
-          },
-          body: JSON.stringify({
-            user_email: formData.email,
-            alert_type: alertType,
-            device_info: navigator.userAgent,
-            location: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            timestamp: new Date().toISOString(),
-            ...additionalData,
-          }),
+      const response = await supabase.functions.invoke('enhanced-auth-emails', {
+        body: {
+          type: 'security-alert',
+          user_email: formData.email,
+          alert_type: alertType,
+          device_info: navigator.userAgent,
+          location: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          timestamp: new Date().toISOString(),
+          ip_address: 'client-side', // 실제 IP는 edge function에서 추출
+          fingerprint: deviceFingerprint,
+          ...additionalData,
         }
-      );
+      });
       
-      if (!response.ok) {
-        console.error('Failed to send security alert');
+      if (response.error) {
+        console.error('Failed to send security alert:', response.error);
       }
     } catch (error) {
       console.error('Error sending security alert:', error);
