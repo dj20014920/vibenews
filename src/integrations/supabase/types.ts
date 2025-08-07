@@ -1804,6 +1804,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_badges: {
+        Row: {
+          badge_category: string
+          badge_color: string
+          badge_description: string
+          badge_icon: string
+          badge_id: string
+          badge_level: number | null
+          badge_name: string
+          earned_at: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          badge_category: string
+          badge_color: string
+          badge_description: string
+          badge_icon: string
+          badge_id: string
+          badge_level?: number | null
+          badge_name: string
+          earned_at?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          badge_category?: string
+          badge_color?: string
+          badge_description?: string
+          badge_icon?: string
+          badge_id?: string
+          badge_level?: number | null
+          badge_name?: string
+          earned_at?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_follows: {
         Row: {
           created_at: string | null
@@ -1852,6 +1891,33 @@ export type Database = {
           interaction_data?: Json | null
           interaction_type?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_levels: {
+        Row: {
+          created_at: string | null
+          id: string
+          level: number | null
+          points: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          level?: number | null
+          points?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          level?: number | null
+          points?: number | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
