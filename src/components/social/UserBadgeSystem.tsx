@@ -1,6 +1,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useUserLevels, UserBadge, UserLevel } from '@/hooks/useUserLevels';
 import { 
   Crown, 
   Star, 
@@ -11,234 +12,161 @@ import {
   TrendingUp, 
   Users, 
   Code, 
-  Zap 
+  Zap,
+  Folder
 } from 'lucide-react';
 
-export interface UserBadge {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  color: string;
-  category: 'achievement' | 'contribution' | 'social' | 'special';
-  level?: number;
-  earned_at: string;
-}
-
-export interface UserLevel {
-  level: number;
-  title: string;
-  min_points: number;
-  max_points: number;
-  color: string;
-  perks: string[];
-}
-
 interface UserBadgeSystemProps {
-  user: {
-    id: string;
-    nickname: string;
-    level: number;
-    points: number;
-    badges: UserBadge[];
-  };
+  userId?: string;
   showLevel?: boolean;
   showBadges?: boolean;
   maxBadges?: number;
   size?: 'sm' | 'md' | 'lg';
 }
 
-// 사용자 레벨 정의
-const USER_LEVELS: UserLevel[] = [
-  {
-    level: 1,
-    title: '새싹 개발자',
-    min_points: 0,
-    max_points: 99,
-    color: 'bg-green-500',
-    perks: ['기본 댓글 작성']
-  },
-  {
-    level: 2,
-    title: '성장하는 개발자',
-    min_points: 100,
-    max_points: 299,
-    color: 'bg-blue-500',
-    perks: ['게시글 작성', '좋아요 권한']
-  },
-  {
-    level: 3,
-    title: '활발한 개발자',
-    min_points: 300,
-    max_points: 599,
-    color: 'bg-purple-500',
-    perks: ['코드 스니펫 공유', '태그 추천']
-  },
-  {
-    level: 4,
-    title: '숙련된 개발자',
-    min_points: 600,
-    max_points: 999,
-    color: 'bg-orange-500',
-    perks: ['멘토링 신청', '고급 검색']
-  },
-  {
-    level: 5,
-    title: '전문 개발자',
-    min_points: 1000,
-    max_points: 1999,
-    color: 'bg-red-500',
-    perks: ['전문가 배지', '우선 답변']
-  },
-  {
-    level: 6,
-    title: 'VibeNews 마스터',
-    min_points: 2000,
-    max_points: Infinity,
-    color: 'bg-gradient-to-r from-yellow-400 to-orange-500',
-    perks: ['모든 권한', '특별 이벤트 참여']
-  }
-];
-
-// 배지 아이콘 매핑
-const getBadgeIcon = (iconName: string, size: number = 16) => {
-  const iconProps = { size, className: "text-current" };
+const getBadgeIcon = (iconName: string, size = 16) => {
+  const iconProps = { size, className: "inline" };
   
-  switch (iconName) {
-    case 'crown':
-      return <Crown {...iconProps} />;
-    case 'star':
-      return <Star {...iconProps} />;
-    case 'award':
-      return <Award {...iconProps} />;
-    case 'shield':
-      return <Shield {...iconProps} />;
-    case 'heart':
-      return <Heart {...iconProps} />;
-    case 'message':
-      return <MessageSquare {...iconProps} />;
-    case 'trending':
-      return <TrendingUp {...iconProps} />;
-    case 'users':
-      return <Users {...iconProps} />;
-    case 'code':
-      return <Code {...iconProps} />;
-    case 'zap':
-      return <Zap {...iconProps} />;
-    default:
-      return <Star {...iconProps} />;
+  switch (iconName.toLowerCase()) {
+    case 'crown': return <Crown {...iconProps} />;
+    case 'star': return <Star {...iconProps} />;
+    case 'award': return <Award {...iconProps} />;
+    case 'shield': return <Shield {...iconProps} />;
+    case 'heart': return <Heart {...iconProps} />;
+    case 'message-square': return <MessageSquare {...iconProps} />;
+    case 'trending-up': return <TrendingUp {...iconProps} />;
+    case 'users': return <Users {...iconProps} />;
+    case 'code': return <Code {...iconProps} />;
+    case 'zap': return <Zap {...iconProps} />;
+    case 'folder': return <Folder {...iconProps} />;
+    default: return <Star {...iconProps} />;
   }
 };
 
-// 레벨 색상 반환
 const getLevelColor = (level: number): string => {
-  const userLevel = USER_LEVELS.find(l => l.level === level);
-  return userLevel?.color || 'bg-gray-500';
+  const colorMap: Record<number, string> = {
+    1: "bg-green-500",
+    2: "bg-blue-500", 
+    3: "bg-purple-500",
+    4: "bg-orange-500",
+    5: "bg-red-500",
+    6: "bg-gradient-to-r from-yellow-400 to-orange-500"
+  };
+  return colorMap[level] || "bg-gray-500";
 };
 
-// 레벨 타이틀 반환
 const getLevelTitle = (level: number): string => {
-  const userLevel = USER_LEVELS.find(l => l.level === level);
-  return userLevel?.title || '개발자';
+  const titleMap: Record<number, string> = {
+    1: "코딩 입문자",
+    2: "코딩 탐험가",
+    3: "개발 마니아", 
+    4: "코딩 전문가",
+    5: "개발 구루",
+    6: "코딩 마스터"
+  };
+  return titleMap[level] || "개발자";
 };
 
-// 배지 색상 클래스 매핑
 const getBadgeColorClass = (color: string): string => {
   const colorMap: Record<string, string> = {
-    'gold': 'bg-yellow-500 text-yellow-50',
-    'silver': 'bg-gray-400 text-gray-50',
-    'bronze': 'bg-amber-600 text-amber-50',
-    'blue': 'bg-blue-500 text-blue-50',
-    'green': 'bg-green-500 text-green-50',
-    'purple': 'bg-purple-500 text-purple-50',
-    'red': 'bg-red-500 text-red-50',
-    'pink': 'bg-pink-500 text-pink-50',
-    'indigo': 'bg-indigo-500 text-indigo-50',
+    'gray': 'bg-gray-500 text-white',
+    'green': 'bg-green-500 text-white',
+    'blue': 'bg-blue-500 text-white',
+    'purple': 'bg-purple-500 text-white',
+    'orange': 'bg-orange-500 text-white',
+    'red': 'bg-red-500 text-white',
+    'yellow': 'bg-yellow-500 text-white',
   };
-  
-  return colorMap[color] || 'bg-gray-500 text-gray-50';
+  return colorMap[color] || "bg-gray-500 text-white";
 };
 
-export function UserBadgeSystem({ 
-  user, 
-  showLevel = true, 
-  showBadges = true, 
-  maxBadges = 3,
-  size = 'md'
-}: UserBadgeSystemProps) {
+export function UserBadgeSystem({ userId, showLevel = true, showBadges = true, maxBadges = 3, size = 'md' }: UserBadgeSystemProps) {
+  const { userStats, loading, calculateLevel, USER_LEVELS } = useUserLevels();
+  
+  if (loading || !userStats) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="h-6 w-16 bg-muted animate-pulse rounded" />
+        <div className="h-6 w-6 bg-muted animate-pulse rounded" />
+      </div>
+    );
+  }
+
+  const levelInfo = calculateLevel(userStats.points);
+  
   const sizeClasses = {
-    sm: 'text-xs',
-    md: 'text-sm',
-    lg: 'text-base'
+    sm: { 
+      badge: "h-6 text-xs", 
+      icon: 12, 
+      text: "text-xs",
+      container: "gap-1"
+    },
+    md: { 
+      badge: "h-7 text-sm", 
+      icon: 14, 
+      text: "text-sm",
+      container: "gap-2"
+    },
+    lg: { 
+      badge: "h-8 text-base", 
+      icon: 16, 
+      text: "text-base",
+      container: "gap-3"
+    }
   };
 
-  const iconSizes = {
-    sm: 12,
-    md: 16,
-    lg: 20
-  };
-
-  const badgesToShow = showBadges ? user.badges.slice(0, maxBadges) : [];
-  const hiddenBadgesCount = user.badges.length - maxBadges;
+  const currentSize = sizeClasses[size];
+  const displayBadges = userStats.badges.slice(0, maxBadges);
 
   return (
-    <TooltipProvider>
-      <div className={`flex items-center gap-2 ${sizeClasses[size]}`}>
-        {/* 사용자 레벨 */}
+    <div className={`flex items-center ${currentSize.container}`}>
+      <TooltipProvider>
         {showLevel && (
           <Tooltip>
-            <TooltipTrigger>
-              <Badge
-                variant="secondary"
-                className={`${getLevelColor(user.level)} text-white border-0 font-semibold`}
+            <TooltipTrigger asChild>
+              <Badge 
+                variant="secondary" 
+                className={`${currentSize.badge} ${getLevelColor(userStats.level)} flex items-center gap-1`}
               >
-                <Crown className="w-3 h-3 mr-1" />
-                Lv.{user.level}
+                {getBadgeIcon('crown', currentSize.icon)}
+                <span className={currentSize.text}>
+                  Lv.{userStats.level} {levelInfo.title}
+                </span>
               </Badge>
             </TooltipTrigger>
             <TooltipContent>
               <div className="text-center">
-                <p className="font-semibold">{getLevelTitle(user.level)}</p>
+                <p className="font-semibold">{levelInfo.title}</p>
+                <p className="text-sm text-muted-foreground">포인트: {userStats.points}</p>
                 <p className="text-xs text-muted-foreground">
-                  {user.points.toLocaleString()} 포인트
+                  다음 레벨: {levelInfo.level < USER_LEVELS.length ? USER_LEVELS[levelInfo.level].min_points - userStats.points : 0}P
                 </p>
-                <div className="mt-2 text-xs">
-                  <p className="font-medium">혜택:</p>
-                  <ul className="list-disc list-inside text-left">
-                    {USER_LEVELS.find(l => l.level === user.level)?.perks.map((perk, i) => (
-                      <li key={i}>{perk}</li>
-                    ))}
-                  </ul>
-                </div>
               </div>
             </TooltipContent>
           </Tooltip>
         )}
 
-        {/* 사용자 배지들 */}
-        {showBadges && badgesToShow.map((badge) => (
+        {showBadges && displayBadges.map((badge) => (
           <Tooltip key={badge.id}>
-            <TooltipTrigger>
-              <Badge
-                variant="secondary"
-                className={`${getBadgeColorClass(badge.color)} border-0 flex items-center gap-1`}
+            <TooltipTrigger asChild>
+              <Badge 
+                variant="outline" 
+                className={`${currentSize.badge} ${getBadgeColorClass(badge.badge_color)} flex items-center gap-1`}
               >
-                {getBadgeIcon(badge.icon, iconSizes[size])}
-                <span className="font-medium">{badge.name}</span>
-                {badge.level && (
-                  <span className="text-xs opacity-80">
-                    {badge.level}
+                {getBadgeIcon(badge.badge_icon, currentSize.icon)}
+                <span className={currentSize.text}>{badge.badge_name}</span>
+                {badge.badge_level && (
+                  <span className={`${currentSize.text} opacity-75`}>
+                    Lv.{badge.badge_level}
                   </span>
                 )}
               </Badge>
             </TooltipTrigger>
             <TooltipContent>
-              <div>
-                <p className="font-semibold">{badge.name}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {badge.description}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
+              <div className="text-center">
+                <p className="font-semibold">{badge.badge_name}</p>
+                <p className="text-sm text-muted-foreground">{badge.badge_description}</p>
+                <p className="text-xs text-muted-foreground">
                   획득일: {new Date(badge.earned_at).toLocaleDateString()}
                 </p>
               </div>
@@ -246,39 +174,34 @@ export function UserBadgeSystem({
           </Tooltip>
         ))}
 
-        {/* 숨겨진 배지 수 */}
-        {hiddenBadgesCount > 0 && (
-          <Badge variant="outline" className="text-xs">
-            +{hiddenBadgesCount}
+        {userStats.badges.length > maxBadges && (
+          <Badge variant="outline" className={`${currentSize.badge} opacity-60`}>
+            <span className={currentSize.text}>+{userStats.badges.length - maxBadges}</span>
           </Badge>
         )}
-      </div>
-    </TooltipProvider>
+      </TooltipProvider>
+    </div>
   );
 }
 
-// 배지 진행 상황 컴포넌트
+// 배지 진행도 컴포넌트
 interface BadgeProgressProps {
   badges: UserBadge[];
-  availableBadges: Omit<UserBadge, 'earned_at'>[];
+  availableBadges: UserBadge[];
 }
 
 export function BadgeProgress({ badges, availableBadges }: BadgeProgressProps) {
-  const earnedBadgeIds = badges.map(b => b.id);
-  const earnedCount = badges.length;
-  const totalCount = availableBadges.length;
-  const progressPercentage = (earnedCount / totalCount) * 100;
+  const progressPercentage = Math.round((badges.length / availableBadges.length) * 100);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">배지 컬렉션</h3>
         <span className="text-sm text-muted-foreground">
-          {earnedCount}/{totalCount}
+          {badges.length}/{availableBadges.length}
         </span>
       </div>
-
-      {/* 진행 바 */}
+      
       <div className="w-full bg-gray-200 rounded-full h-2">
         <div
           className="bg-blue-600 h-2 rounded-full transition-all duration-300"
@@ -286,10 +209,9 @@ export function BadgeProgress({ badges, availableBadges }: BadgeProgressProps) {
         />
       </div>
 
-      {/* 배지 그리드 */}
       <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
         {availableBadges.map((badge) => {
-          const isEarned = earnedBadgeIds.includes(badge.id);
+          const isEarned = badges.some(b => b.badge_id === badge.badge_id);
           
           return (
             <TooltipProvider key={badge.id}>
@@ -299,22 +221,22 @@ export function BadgeProgress({ badges, availableBadges }: BadgeProgressProps) {
                     className={`
                       flex flex-col items-center p-3 rounded-lg border-2 transition-all duration-200
                       ${isEarned 
-                        ? `${getBadgeColorClass(badge.color)} border-current` 
+                        ? `${getBadgeColorClass(badge.badge_color)} border-current` 
                         : 'bg-gray-100 border-gray-300 opacity-50'
                       }
                     `}
                   >
-                    {getBadgeIcon(badge.icon, 24)}
+                    {getBadgeIcon(badge.badge_icon, 24)}
                     <span className="text-xs font-medium mt-1 text-center">
-                      {badge.name}
+                      {badge.badge_name}
                     </span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
                   <div>
-                    <p className="font-semibold">{badge.name}</p>
+                    <p className="font-semibold">{badge.badge_name}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {badge.description}
+                      {badge.badge_description}
                     </p>
                     <p className="text-xs mt-2">
                       {isEarned ? (
@@ -334,29 +256,29 @@ export function BadgeProgress({ badges, availableBadges }: BadgeProgressProps) {
   );
 }
 
-// 레벨 진행 바 컴포넌트
+// 레벨 진행도 컴포넌트
 interface LevelProgressProps {
   currentLevel: number;
   currentPoints: number;
 }
 
 export function LevelProgress({ currentLevel, currentPoints }: LevelProgressProps) {
-  const currentLevelData = USER_LEVELS.find(l => l.level === currentLevel);
-  const nextLevelData = USER_LEVELS.find(l => l.level === currentLevel + 1);
+  const { USER_LEVELS } = useUserLevels();
+  const levelInfo = USER_LEVELS.find(level => level.level === currentLevel) || USER_LEVELS[0];
+  const nextLevel = USER_LEVELS.find(level => level.level === currentLevel + 1);
   
-  if (!currentLevelData) return null;
+  const progressInCurrentLevel = nextLevel 
+    ? Math.round(((currentPoints - levelInfo.min_points) / (nextLevel.min_points - levelInfo.min_points)) * 100)
+    : 100;
 
-  const pointsInCurrentLevel = currentPoints - currentLevelData.min_points;
-  const pointsNeededForLevel = currentLevelData.max_points - currentLevelData.min_points + 1;
-  const progressPercentage = (pointsInCurrentLevel / pointsNeededForLevel) * 100;
-  const pointsToNext = nextLevelData ? nextLevelData.min_points - currentPoints : 0;
+  const pointsToNext = nextLevel ? nextLevel.min_points - currentPoints : 0;
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">레벨 진행도</h3>
         <div className="text-right">
-          <p className="text-sm font-medium">{currentLevelData.title}</p>
+          <p className="text-sm font-medium">{levelInfo.title}</p>
           <p className="text-xs text-muted-foreground">
             {currentPoints.toLocaleString()} 포인트
           </p>
@@ -366,28 +288,27 @@ export function LevelProgress({ currentLevel, currentPoints }: LevelProgressProp
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
           <span>Lv.{currentLevel}</span>
-          {nextLevelData && <span>Lv.{nextLevelData.level}</span>}
+          {nextLevel && <span>Lv.{nextLevel.level}</span>}
         </div>
         
         <div className="w-full bg-gray-200 rounded-full h-3">
           <div
-            className={`h-3 rounded-full transition-all duration-300 ${currentLevelData.color}`}
-            style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+            className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+            style={{ width: `${Math.min(progressInCurrentLevel, 100)}%` }}
           />
         </div>
         
-        {nextLevelData && pointsToNext > 0 && (
+        {nextLevel && pointsToNext > 0 && (
           <p className="text-xs text-muted-foreground text-center">
             다음 레벨까지 {pointsToNext.toLocaleString()} 포인트 필요
           </p>
         )}
       </div>
 
-      {/* 현재 레벨 혜택 */}
       <div className="bg-muted p-3 rounded-lg">
         <p className="text-sm font-medium mb-2">현재 레벨 혜택:</p>
         <ul className="text-xs space-y-1">
-          {currentLevelData.perks.map((perk, i) => (
+          {levelInfo.perks.map((perk, i) => (
             <li key={i} className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
               {perk}
