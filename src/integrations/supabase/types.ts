@@ -136,6 +136,48 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_activity_logs: {
+        Row: {
+          activity_type: string
+          created_at: string
+          device_fingerprint: string | null
+          email: string
+          id: string
+          ip_address: unknown | null
+          location: string | null
+          metadata: Json | null
+          success: boolean | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          device_fingerprint?: string | null
+          email: string
+          id?: string
+          ip_address?: unknown | null
+          location?: string | null
+          metadata?: Json | null
+          success?: boolean | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          device_fingerprint?: string | null
+          email?: string
+          id?: string
+          ip_address?: unknown | null
+          location?: string | null
+          metadata?: Json | null
+          success?: boolean | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       bookmark_folders: {
         Row: {
           color: string | null
@@ -1424,6 +1466,48 @@ export type Database = {
           ip_address?: unknown | null
           severity?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      security_settings: {
+        Row: {
+          created_at: string
+          id: string
+          last_security_check: string | null
+          login_notifications: boolean | null
+          max_concurrent_sessions: number | null
+          password_changed_at: string | null
+          session_timeout_minutes: number | null
+          suspicious_activity_alerts: boolean | null
+          two_factor_enabled: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_security_check?: string | null
+          login_notifications?: boolean | null
+          max_concurrent_sessions?: number | null
+          password_changed_at?: string | null
+          session_timeout_minutes?: number | null
+          suspicious_activity_alerts?: boolean | null
+          two_factor_enabled?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_security_check?: string | null
+          login_notifications?: boolean | null
+          max_concurrent_sessions?: number | null
+          password_changed_at?: string | null
+          session_timeout_minutes?: number | null
+          suspicious_activity_alerts?: boolean | null
+          two_factor_enabled?: boolean | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
