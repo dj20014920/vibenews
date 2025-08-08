@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Github, Mail } from "lucide-react";
+import { Github, Mail, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EnhancedAuthForm } from "@/components/auth/EnhancedAuthForm";
 import { EmailVerificationStatus } from "@/components/auth/EmailVerificationStatus";
@@ -51,7 +51,7 @@ const Auth = () => {
     }
   };
 
-  const handleOAuthSignIn = async (provider: 'google' | 'github') => {
+  const handleOAuthSignIn = async (provider: 'google' | 'github' | 'kakao') => {
     setIsLoading(true);
     try {
       await signInWithProvider(provider);
@@ -118,7 +118,7 @@ const Auth = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mt-6">
+          <div className="grid grid-cols-3 gap-4 mt-6">
             <Button
               variant="outline"
               className="w-full"
@@ -136,6 +136,15 @@ const Auth = () => {
             >
               <Github className="mr-2 h-4 w-4" />
               GitHub
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => handleOAuthSignIn('kakao')}
+              disabled={isLoading}
+            >
+              <MessageCircle className="mr-2 h-4 w-4" />
+              Kakao
             </Button>
           </div>
         </CardContent>
