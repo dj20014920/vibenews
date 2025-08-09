@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Eye, Heart, MessageSquare, Clock, TrendingUp, Sparkles, Code2, Users, Crown, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { SEO } from '@/components/seo/SEO'
 
 interface NewsArticle {
   id: string
@@ -231,6 +232,11 @@ export default function Index() {
   }
 
   return (
+    <>
+      <SEO
+        title="VibeNews – 바이브 코딩 트렌드 뉴스 & 커뮤니티"
+        description="AI 코딩 도구 뉴스와 커뮤니티. Cursor, Lovable, GitHub Copilot 등 최신 트렌드를 한 곳에서."
+      />
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
       {/* Hero Section */}
       <section className="relative py-16 overflow-hidden">
@@ -446,5 +452,6 @@ export default function Index() {
         </section>
       </div>
     </div>
+    </>
   )
 }

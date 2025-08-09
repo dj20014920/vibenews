@@ -17,3 +17,6 @@ verify_jwt = true
 
 [functions.subscription-status]
 verify_jwt = true
+
+[functions.enhanced-auth-emails]
+verify_jwt = false

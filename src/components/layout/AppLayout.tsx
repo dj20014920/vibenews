@@ -1,6 +1,7 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "./AppSidebar"
 import { ThemeToggle } from "@/components/ThemeToggle"
+import { SEO, defaultSiteJsonLd } from "@/components/seo/SEO"
 import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -21,6 +22,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <AppSidebar />
         
         <div className="flex-1 flex flex-col">
+          <SEO jsonLd={defaultSiteJsonLd()} />
           <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="flex h-14 items-center justify-between px-4">
               <div className="flex items-center space-x-4">
