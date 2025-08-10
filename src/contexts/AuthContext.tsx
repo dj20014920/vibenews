@@ -21,7 +21,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, nickname: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   updatePreferences: (updates: Partial<UserPreferences>) => Promise<void>;
-  signInWithProvider: (provider: 'google' | 'github' | 'kakao' | 'naver') => Promise<{ error: Error | null }>;
+  signInWithProvider: (provider: 'google' | 'github' | 'kakao') => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -317,12 +317,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signInWithProvider = async (provider: 'google' | 'github' | 'kakao' | 'naver') => {
+  const signInWithProvider = async (provider: 'google' | 'github' | 'kakao') => {
     try {
       cleanupAuthState();
-      
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: provider as any,
+        provider,
         options: {
           redirectTo: `${window.location.origin}/`,
         },
