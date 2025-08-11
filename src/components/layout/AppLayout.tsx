@@ -27,7 +27,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <div className="flex h-14 items-center justify-between px-4">
               <div className="flex items-center space-x-4">
                 <SidebarTrigger />
-                <h2 className="text-lg font-semibold">VibeNews</h2>
+                <h2 className="text-lg font-semibold"><Link to="/" aria-label="메인 화면으로 이동" className="hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm">VibeNews</Link></h2>
               </div>
               
               <div className="flex items-center space-x-4">
