@@ -2,11 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Heart, MessageCircle, Eye, ExternalLink, RefreshCw } from 'lucide-react';
+import { Heart, MessageCircle, Eye, ExternalLink, RefreshCw, Bookmark } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useInView } from 'react-intersection-observer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/hooks/use-toast';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface NewsArticle {
   id: string;
@@ -36,6 +37,9 @@ export function InfiniteNewsList({ searchQuery, selectedTags, sortBy = 'latest' 
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
+
+  const { requireAuth } = usePermissions();
 
   const { ref: loadMoreRef, inView } = useInView({
     threshold: 0.1,
@@ -82,6 +86,25 @@ export function InfiniteNewsList({ searchQuery, selectedTags, sortBy = 'latest' 
         setArticles(data || []);
       } else {
         setArticles(prev => [...prev, ...(data || [])]);
+      }
+
+      // 사용자 북마크 동기화 (현재 페이지의 기사들만 조회)
+      const { data: authData } = await supabase.auth.getUser();
+      const user = authData?.user;
+      if (user && data && data.length > 0) {
+        const ids = data.map((a) => a.id);
+        const { data: marks, error: bmError } = await supabase
+          .from('bookmarks')
+          .select('article_id')
+          .eq('user_id', user.id)
+          .in('article_id', ids);
+        if (!bmError) {
+          setBookmarkedIds((prev) => {
+            const s = reset ? new Set<string>() : new Set(prev);
+            marks?.forEach((m: any) => s.add(m.article_id));
+            return s;
+          });
+        }
       }
 
       setHasMore((data?.length || 0) === ITEMS_PER_PAGE);
@@ -143,7 +166,7 @@ export function InfiniteNewsList({ searchQuery, selectedTags, sortBy = 'latest' 
         .select('*')
         .eq('user_id', user.id)
         .eq('article_id', articleId)
-        .single();
+        .maybeSingle();
 
       if (existingLike) {
         await supabase
@@ -191,6 +214,38 @@ export function InfiniteNewsList({ searchQuery, selectedTags, sortBy = 'latest' 
       }
     } catch (error) {
       console.error('Error updating view count:', error);
+    }
+  };
+
+  const handleBookmark = async (articleId: string) => {
+    if (!requireAuth('bookmark')) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const isBookmarked = bookmarkedIds.has(articleId);
+      if (isBookmarked) {
+        await supabase
+          .from('bookmarks')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('article_id', articleId);
+        setBookmarkedIds((prev) => {
+          const s = new Set(prev);
+          s.delete(articleId);
+          return s;
+        });
+        toast({ title: '북마크 취소', description: '북마크를 취소했습니다.' });
+      } else {
+        await supabase
+          .from('bookmarks')
+          .insert({ user_id: user.id, article_id: articleId });
+        setBookmarkedIds((prev) => new Set(prev).add(articleId));
+        toast({ title: '북마크 완료', description: '북마크에 저장했습니다.' });
+      }
+    } catch (error) {
+      console.error('Error handling bookmark:', error);
+      toast({ title: '오류', description: '북마크 처리 중 오류가 발생했습니다.', variant: 'destructive' });
     }
   };
 
@@ -288,6 +343,13 @@ export function InfiniteNewsList({ searchQuery, selectedTags, sortBy = 'latest' 
                 </div>
                 
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleBookmark(article.id)}
+                    className={`flex items-center gap-1 transition-colors ${bookmarkedIds.has(article.id) ? 'text-primary' : 'hover:text-primary'}`}
+                    aria-label={bookmarkedIds.has(article.id) ? '북마크 취소' : '북마크'}
+                  >
+                    <Bookmark className="h-4 w-4" />
+                  </button>
                   <span>{new Date(article.published_at).toLocaleDateString()}</span>
                   <a
                     href={article.source_url}
