@@ -103,59 +103,61 @@ export default function Index() {
   }
 
   const NewsCard = ({ article }: { article: NewsArticle }) => (
-    <Card className="content-card group">
-      <div className="relative overflow-hidden">
-        <img
-          src={article.thumbnail}
-          alt={article.title}
-          className="content-image"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        <div className="absolute bottom-4 left-4 right-4 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <div className="flex items-center gap-2 text-sm">
-            <Clock className="h-3 w-3" />
-            {formatTimeAgo(article.published_at)}
-          </div>
-        </div>
-      </div>
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-lg line-clamp-2 group-hover:text-primary transition-colors">
-            {article.title}
-          </CardTitle>
-        </div>
-        <CardDescription className="line-clamp-2">
-          {article.summary}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="pt-0 space-y-4">
-        <div className="flex flex-wrap gap-1">
-          {article.tags.slice(0, 3).map((tag) => (
-            <Badge key={tag} variant="secondary" className="tag-secondary text-xs">
-              {tag}
-            </Badge>
-          ))}
-          {article.tags.length > 3 && (
-            <Badge variant="outline" className="text-xs">
-              +{article.tags.length - 3}
-            </Badge>
-          )}
-        </div>
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span className="font-medium">{article.author}</span>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1">
-              <Eye className="h-3 w-3" />
-              {article.view_count.toLocaleString()}
-            </div>
-            <div className="flex items-center gap-1">
-              <Heart className="h-3 w-3" />
-              {article.like_count}
+    <Link to={`/news/${article.id}`} className="block" aria-label={`${article.title} 상세 보기`}>
+      <Card className="content-card group hover:shadow-lg transition-shadow">
+        <div className="relative overflow-hidden">
+          <img
+            src={article.thumbnail}
+            alt={article.title}
+            className="content-image"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="absolute bottom-4 left-4 right-4 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <div className="flex items-center gap-2 text-sm">
+              <Clock className="h-3 w-3" />
+              {formatTimeAgo(article.published_at)}
             </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between gap-2">
+            <CardTitle className="text-lg line-clamp-2 group-hover:text-primary transition-colors">
+              {article.title}
+            </CardTitle>
+          </div>
+          <CardDescription className="line-clamp-2">
+            {article.summary}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-4">
+          <div className="flex flex-wrap gap-1">
+            {article.tags.slice(0, 3).map((tag) => (
+              <Badge key={tag} variant="secondary" className="tag-secondary text-xs">
+                {tag}
+              </Badge>
+            ))}
+            {article.tags.length > 3 && (
+              <Badge variant="outline" className="text-xs">
+                +{article.tags.length - 3}
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span className="font-medium">{article.author}</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                <Eye className="h-3 w-3" />
+                {article.view_count.toLocaleString()}
+              </div>
+              <div className="flex items-center gap-1">
+                <Heart className="h-3 w-3" />
+                {article.like_count}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   )
 
   const CommunityCard = ({ post }: { post: CommunityPost }) => (
