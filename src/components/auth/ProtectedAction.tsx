@@ -22,11 +22,20 @@ export const ProtectedAction = ({
   showLoginPrompt = true,
   requiredAuth = true 
 }: ProtectedActionProps) => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
   // 인증이 필요없는 경우 바로 렌더링
   if (!requiredAuth) {
     return <>{children}</>;
+  }
+
+  // 로딩 중에는 프롬프트를 표시하지 않음
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-4">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   // 로그인된 사용자는 바로 렌더링
@@ -80,9 +89,9 @@ export const GuestPrompt = ({
   message = "더 많은 기능을 이용하려면 회원가입하세요", 
   actionText = "회원가입"
 }: GuestPromptProps) => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
-  if (user) return null;
+  if (loading || user) return null;
 
   return (
     <div className="bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 rounded-lg p-4 mb-6">

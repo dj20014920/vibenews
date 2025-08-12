@@ -14,7 +14,7 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { user, signOut } = useAuth()
+  const { user, loading, signOut } = useAuth()
 
   return (
     <SidebarProvider>
@@ -33,7 +33,9 @@ export function AppLayout({ children }: AppLayoutProps) {
               <div className="flex items-center space-x-4">
                 <ThemeToggle />
                 
-                {user ? (
+                {loading ? (
+                  <div className="h-8 w-8 rounded-full bg-muted animate-pulse" aria-hidden="true" />
+                ) : user ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="sm" className="relative h-8 w-8 rounded-full">

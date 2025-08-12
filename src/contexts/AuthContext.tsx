@@ -193,6 +193,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
       }
 
+      // 세션이 생성되었거나 사용자 객체가 존재하면 전체 페이지 새로고침으로 상태 정합성 보장
+      if (data.session || data.user) {
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 0);
+      }
+
       return { error: null };
     } catch (error) {
       const err = error as Error;
@@ -285,6 +292,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         title: "로그아웃 완료",
         description: "안전하게 로그아웃되었습니다.",
       });
+
+      // 완전한 세션 정리 보장을 위해 인증 페이지로 리다이렉트
+      setTimeout(() => {
+        window.location.href = '/auth';
+      }, 0);
     } catch (error) {
       console.error('Error signing out:', error);
     }
