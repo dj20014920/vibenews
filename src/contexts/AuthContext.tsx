@@ -47,6 +47,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  // 디버깅용 로그
+  console.log("AuthProvider mounting...");
+  
+  // Context 값이 올바르게 설정되었는지 확인
+  useEffect(() => {
+    console.log("AuthProvider useEffect running, user:", user, "loading:", loading);
+  }, [user, loading]);
+
   // 사용자 설정 로드
   const loadUserPreferences = async (userId: string) => {
     try {
@@ -373,6 +381,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     signInWithProvider,
   };
 
+  // Context 값 디버깅
+  console.log("AuthProvider providing value:", { user: !!user, loading, session: !!session });
+
   return (
     <AuthContext.Provider value={value}>
       {children}
@@ -383,6 +394,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
+    console.error("useAuth called outside AuthProvider. Check component hierarchy.");
+    console.error("Current location:", new Error().stack);
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
