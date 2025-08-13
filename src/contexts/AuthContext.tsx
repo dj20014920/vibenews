@@ -221,10 +221,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signUp = async (email: string, password: string, nickname: string) => {
+    console.log("Starting signUp process...", { email, nickname });
+    
     try {
       cleanupAuthState();
       
       const redirectUrl = `${window.location.origin}/auth?verified=true`;
+      console.log("Using redirect URL:", redirectUrl);
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -238,9 +241,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       });
 
+      console.log("SignUp response:", { data, error });
+
       if (error) {
+        console.error("SignUp error details:", {
+          message: error.message,
+          status: error.status,
+          name: error.name
+        });
+        
         // 친화적인 에러 메시지
         let message = "회원가입에 실패했습니다.";
+        let detailedError = error.message;
+        
         if (error.message.includes("User already registered")) {
           message = "이미 등록된 이메일입니다. 로그인을 시도해보세요.";
         } else if (error.message.includes("Password should be")) {
@@ -249,18 +262,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           message = "올바르지 않은 이메일 형식입니다.";
         } else if (error.message.includes("Signup is disabled")) {
           message = "현재 회원가입이 비활성화되어 있습니다.";
+        } else if (error.message.includes("Database error")) {
+          message = "데이터베이스 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+        } else if (error.message.includes("Network error")) {
+          message = "네트워크 연결을 확인해주세요.";
+        } else if (error.message.includes("rate limit")) {
+          message = "너무 많은 요청이 발생했습니다. 잠시 후 다시 시도해주세요.";
         }
         
         toast({
           title: "회원가입 실패",
-          description: message,
+          description: `${message}\n상세 오류: ${detailedError}`,
           variant: "destructive",
         });
         return { error };
       }
 
+      console.log("SignUp successful:", { user: !!data.user, session: !!data.session });
+
       // 이메일 확인 필요한 경우
       if (data.user && !data.session) {
+        console.log("Email confirmation required");
         toast({
           title: "회원가입 완료! 📧",
           description: "이메일로 전송된 인증 링크를 클릭하여 계정을 활성화해주세요.",
@@ -268,6 +290,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } 
       // 즉시 로그인되는 경우 (이메일 확인 비활성화된 경우)
       else if (data.session) {
+        console.log("Auto-login after signup");
         toast({
           title: "회원가입 성공! 🎉",
           description: "환영합니다! 바로 서비스를 이용하실 수 있습니다.",
@@ -277,9 +300,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { error: null };
     } catch (error) {
       const err = error as Error;
+      console.error("SignUp catch error:", {
+        message: err.message,
+        stack: err.stack,
+        name: err.name
+      });
+      
       toast({
         title: "회원가입 실패",
-        description: "예상치 못한 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+        description: `예상치 못한 오류가 발생했습니다.\n오류 내용: ${err.message}\n잠시 후 다시 시도해주세요.`,
         variant: "destructive",
       });
       return { error: err };
