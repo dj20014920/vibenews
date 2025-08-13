@@ -1145,6 +1145,7 @@ export type Database = {
       news_articles: {
         Row: {
           author: string | null
+          comment_count: number | null
           content: string
           content_simplified: string | null
           created_at: string | null
@@ -1163,6 +1164,7 @@ export type Database = {
         }
         Insert: {
           author?: string | null
+          comment_count?: number | null
           content: string
           content_simplified?: string | null
           created_at?: string | null
@@ -1181,6 +1183,7 @@ export type Database = {
         }
         Update: {
           author?: string | null
+          comment_count?: number | null
           content?: string
           content_simplified?: string | null
           created_at?: string | null
@@ -2306,6 +2309,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
         }
         Returns: boolean
+      }
+      increment_view_count: {
+        Args: { content_type: string; content_id: string }
+        Returns: undefined
       }
     }
     Enums: {
