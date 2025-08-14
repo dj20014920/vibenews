@@ -18,6 +18,7 @@ import Bookmarks from "./pages/Bookmarks";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
+import MyPage from "./pages/MyPage";
 import Tools from "./pages/Tools";
 import Learning from "./pages/Learning";
 import Trends from "./pages/Trends";
@@ -50,6 +51,7 @@ const App = () => (
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/profile/:userId" element={<Profile />} />
+                  <Route path="/mypage" element={<MyPage />} />
                   <Route path="/tools" element={<Tools />} />
                   <Route path="/learning" element={<Learning />} />
                   <Route path="/trends" element={<Trends />} />

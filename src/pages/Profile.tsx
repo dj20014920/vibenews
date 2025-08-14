@@ -34,6 +34,30 @@ interface UserStats {
   following: number
 }
 
+interface UserPost {
+  id: string;
+  title: string;
+  created_at: string;
+}
+
+interface UserComment {
+  id: string;
+  content: string;
+  post: {
+    id: string;
+    title: string;
+  } | null;
+}
+
+interface UserBookmark {
+  id: string;
+  post: {
+    id: string;
+    title: string;
+    created_at: string;
+  } | null;
+}
+
 export default function Profile() {
   const { user } = useAuth()
   const { userId } = useParams()
@@ -42,9 +66,14 @@ export default function Profile() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [stats, setStats] = useState<UserStats>({ posts: 0, comments: 0, likes: 0, followers: 0, following: 0 })
   const [loading, setLoading] = useState(true)
+  const [tabLoading, setTabLoading] = useState(false)
   const [editing, setEditing] = useState(false)
   const [isFollowing, setIsFollowing] = useState(false)
   
+  const [userPosts, setUserPosts] = useState<UserPost[]>([])
+  const [userComments, setUserComments] = useState<UserComment[]>([])
+  const [userBookmarks, setUserBookmarks] = useState<UserBookmark[]>([])
+
   // Edit form states
   const [editForm, setEditForm] = useState({
     nickname: '',
@@ -65,6 +94,7 @@ export default function Profile() {
     
     if (targetUserId) {
       fetchProfile()
+      fetchUserPosts() // Fetch posts on initial load
     }
   }, [user, targetUserId, isOwnProfile])
 
@@ -155,6 +185,48 @@ export default function Profile() {
       })
     }
   }
+
+  const fetchUserPosts = async () => {
+    if (!targetUserId) return;
+    setTabLoading(true);
+    const { data } = await supabase
+      .from('v_community_posts')
+      .select('id, title, created_at')
+      .eq('author_id', targetUserId)
+      .order('created_at', { ascending: false });
+    setUserPosts(data as UserPost[] || []);
+    setTabLoading(false);
+  };
+
+  const fetchUserComments = async () => {
+    if (!targetUserId) return;
+    setTabLoading(true);
+    const { data } = await supabase
+      .from('v_comments')
+      .select('id, content, post:community_posts(id, title)')
+      .eq('author_id', targetUserId)
+      .order('created_at', { ascending: false });
+    setUserComments(data as UserComment[] || []);
+    setTabLoading(false);
+  };
+
+  const fetchUserBookmarks = async () => {
+    if (!targetUserId) return;
+    setTabLoading(true);
+    const { data } = await supabase
+      .from('bookmarks')
+      .select('id, post:community_posts(id, title, created_at)')
+      .eq('user_id', targetUserId)
+      .order('created_at', { ascending: false });
+    setUserBookmarks(data as UserBookmark[] || []);
+    setTabLoading(false);
+  };
+
+  const onTabChange = (tab: string) => {
+    if (tab === 'posts') fetchUserPosts();
+    if (tab === 'comments') fetchUserComments();
+    if (tab === 'bookmarks') fetchUserBookmarks();
+  };
 
   const handleFollowToggle = async () => {
     if (!user || isOwnProfile) return
@@ -343,7 +415,7 @@ export default function Profile() {
       </Card>
 
       {/* Profile Content Tabs */}
-      <Tabs defaultValue="posts" className="w-full">
+      <Tabs defaultValue="posts" className="w-full" onValueChange={onTabChange}>
         <TabsList>
           <TabsTrigger value="posts">게시글</TabsTrigger>
           <TabsTrigger value="comments">댓글</TabsTrigger>
@@ -359,9 +431,18 @@ export default function Profile() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground text-center py-8">
-                게시글 목록 기능은 곧 구현됩니다.
-              </p>
+              {userPosts.length > 0 ? (
+                userPosts.map(post => (
+                  <div key={post.id} className="p-3 rounded-lg hover:bg-muted">
+                    <Link to={`/community/post/${post.id}`} className="font-semibold">{post.title}</Link>
+                    <div className="text-sm text-muted-foreground flex items-center gap-4 mt-1">
+                      <span>{new Date(post.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-muted-foreground text-center py-8">작성한 게시글이 없습니다.</p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -374,10 +455,19 @@ export default function Profile() {
                 {profile.nickname}님이 작성한 댓글들입니다.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground text-center py-8">
-                댓글 목록 기능은 곧 구현됩니다.
-              </p>
+            <CardContent className="space-y-2">
+              {userComments.length > 0 ? (
+                userComments.map(comment => (
+                  <div key={comment.id} className="p-3 rounded-lg hover:bg-muted">
+                    <p className="italic">"{comment.content}"</p>
+                    <Link to={`/community/post/${comment.post?.id}`} className="text-sm text-muted-foreground hover:underline">
+                      - {comment.post?.title || '게시글'}에 작성된 댓글
+                    </Link>
+                  </div>
+                ))
+              ) : (
+                 <p className="text-muted-foreground text-center py-8">작성한 댓글이 없습니다.</p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -392,9 +482,18 @@ export default function Profile() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground text-center py-8">
-                  북마크 목록 기능은 곧 구현됩니다.
-                </p>
+                {userBookmarks.length > 0 ? (
+                  userBookmarks.map(bookmark => (
+                    <div key={bookmark.id} className="p-3 rounded-lg hover:bg-muted">
+                       <Link to={`/community/post/${bookmark.post?.id}`} className="font-semibold">{bookmark.post?.title}</Link>
+                       <p className="text-sm text-muted-foreground">{new Date(bookmark.post?.created_at || 0).toLocaleDateString()}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">
+                    북마크한 게시글이 없습니다.
+                  </p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

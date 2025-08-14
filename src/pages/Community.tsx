@@ -26,6 +26,10 @@ interface CommunityPost {
   comment_count: number;
   is_featured: boolean;
   is_pinned: boolean;
+  author?: {
+    nickname: string;
+    avatar_url?: string;
+  };
 }
 
 export default function Community() {
@@ -46,9 +50,13 @@ export default function Community() {
     const load = async () => {
       try {
         setLoading(true);
+        // Use the view to get author info
         let query = supabase
-          .from('community_posts')
-          .select('*')
+          .from('v_community_posts')
+          .select(`
+            *,
+            author:users(nickname, avatar_url)
+          `)
           .eq('is_hidden', false);
 
         if (activeRoom !== 'all') {
@@ -80,24 +88,20 @@ export default function Community() {
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            {post.is_anonymous ? (
+            <Link to={!post.is_anonymous && post.author_id ? `/profile/${post.author_id}` : '#'} className={`flex items-center gap-3 ${!post.is_anonymous && post.author_id ? '' : 'pointer-events-none'}`}>
               <Avatar className="h-8 w-8">
-                <AvatarFallback>익명</AvatarFallback>
-              </Avatar>
-            ) : (
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={""} />
+                <AvatarImage src={!post.is_anonymous ? post.author?.avatar_url : ''} />
                 <AvatarFallback>
-                  {post.author_id ? post.author_id.slice(0, 2) : '유저'}
+                  {post.is_anonymous ? '익' : post.author?.nickname?.charAt(0) || 'U'}
                 </AvatarFallback>
               </Avatar>
-            )}
-            <div>
-              <p className="text-sm font-medium">
-                {post.is_anonymous ? "익명 사용자" : "회원"}
-              </p>
-              <p className="text-xs text-muted-foreground">{new Date(post.created_at).toLocaleDateString('ko-KR')}</p>
-            </div>
+              <div>
+                <p className="text-sm font-medium">
+                  {post.is_anonymous ? "익명 사용자" : post.author?.nickname || "사용자"}
+                </p>
+                <p className="text-xs text-muted-foreground">{new Date(post.created_at).toLocaleDateString('ko-KR')}</p>
+              </div>
+            </Link>
           </div>
           <div className="flex items-center gap-1">
             {post.is_pinned && <Pin className="h-4 w-4 text-muted-foreground" />}
