@@ -1,10 +1,38 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Define schemas for validation
+const createPostSchema = z.object({
+  title: z.string().min(3, "제목은 3자 이상이어야 합니다.").max(200, "제목은 200자를 초과할 수 없습니다."),
+  content: z.string().min(10, "내용은 10자 이상이어야 합니다."),
+  tags: z.array(z.string().max(25, "각 태그는 25자를 초과할 수 없습니다.")).max(10, "태그는 최대 10개까지 추가할 수 있습니다.").optional().default([]),
+  tools_used: z.array(z.string().max(30, "도구 이름은 30자를 초과할 수 없습니다.")).max(10, "도구는 최대 10개까지 추가할 수 있습니다.").optional().default([]),
+  is_anonymous: z.boolean().optional().default(false),
+  anonymous_author_name: z.string().max(30, "익명 이름은 30자를 초과할 수 없습니다.").optional(),
+});
+
+const updatePostSchema = z.object({
+  post_id: z.string().uuid("유효한 post_id가 아닙니다."),
+  title: z.string().min(3, "제목은 3자 이상이어야 합니다.").max(200, "제목은 200자를 초과할 수 없습니다.").optional(),
+  content: z.string().min(10, "내용은 10자 이상이어야 합니다.").optional(),
+  tags: z.array(z.string().max(25, "각 태그는 25자를 초과할 수 없습니다.")).max(10, "태그는 최대 10개까지 추가할 수 있습니다.").optional(),
+  tools_used: z.array(z.string().max(30, "도구 이름은 30자를 초과할 수 없습니다.")).max(10, "도구는 최대 10개까지 추가할 수 있습니다.").optional(),
+});
+
+const deletePostSchema = z.object({
+  post_id: z.string().uuid("유효한 post_id가 아닙니다."),
+});
+
+const getPostSchema = z.object({
+  post_id: z.string().uuid("유효한 post_id가 아닙니다."),
+});
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -29,25 +57,18 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    const { action, ...data } = await req.json();
+    const body = await req.json();
+    const { action, ...data } = body;
     const user_id = userData.user.id;
 
     if (action === "create") {
-      const { title, content, tags = [], tools_used = [], is_anonymous = false, anonymous_author_name } = data;
-
-      if (!title || !content) {
-        throw new Error("Title and content are required");
-      }
+      const validatedData = createPostSchema.parse(data);
 
       const postData: any = {
-        title,
-        content,
-        tags,
-        tools_used,
+        ...validatedData,
         author_id: user_id,
-        is_anonymous,
-        anonymous_author_name: is_anonymous ? (anonymous_author_name || `익명_${Math.random().toString(36).substr(2, 6)}`) : null,
-        anonymous_author_id: is_anonymous ? `anonymous_${Math.random().toString(36).substr(2, 8)}` : null
+        anonymous_author_name: validatedData.is_anonymous ? (validatedData.anonymous_author_name || `익명_${Math.random().toString(36).substr(2, 6)}`) : null,
+        anonymous_author_id: validatedData.is_anonymous ? `anonymous_${Math.random().toString(36).substr(2, 8)}` : null
       };
 
       const { data: newPost, error: insertError } = await supabaseClient
@@ -82,11 +103,8 @@ serve(async (req) => {
       });
 
     } else if (action === "update") {
-      const { post_id, title, content, tags, tools_used } = data;
-
-      if (!post_id) {
-        throw new Error("post_id is required for update");
-      }
+      const validatedData = updatePostSchema.parse(data);
+      const { post_id, ...updateData } = validatedData;
 
       // Check if user owns the post
       const { data: existingPost } = await supabaseClient
@@ -99,15 +117,11 @@ serve(async (req) => {
         throw new Error("You can only update your own posts");
       }
 
-      const updateData: any = { updated_at: new Date().toISOString() };
-      if (title !== undefined) updateData.title = title;
-      if (content !== undefined) updateData.content = content;
-      if (tags !== undefined) updateData.tags = tags;
-      if (tools_used !== undefined) updateData.tools_used = tools_used;
+      const finalUpdateData = { ...updateData, updated_at: new Date().toISOString() };
 
       const { data: updatedPost, error: updateError } = await supabaseClient
         .from("community_posts")
-        .update(updateData)
+        .update(finalUpdateData)
         .eq("id", post_id)
         .select()
         .single();
@@ -122,11 +136,7 @@ serve(async (req) => {
       });
 
     } else if (action === "delete") {
-      const { post_id } = data;
-
-      if (!post_id) {
-        throw new Error("post_id is required for deletion");
-      }
+      const { post_id } = deletePostSchema.parse(data);
 
       // Check if user owns the post
       const { data: existingPost } = await supabaseClient
@@ -154,11 +164,7 @@ serve(async (req) => {
       });
 
     } else if (action === "get") {
-      const { post_id } = data;
-
-      if (!post_id) {
-        throw new Error("post_id is required");
-      }
+      const { post_id } = getPostSchema.parse(data);
 
       const { data: post, error: selectError } = await supabaseClient
         .from("community_posts")
@@ -192,11 +198,15 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Error in manage-posts function:", error);
+    const errorMessage = error instanceof z.ZodError
+      ? error.errors.map(e => e.message).join(', ')
+      : error.message;
+
     return new Response(JSON.stringify({ 
       success: false, 
-      error: error.message 
+      error: errorMessage
     }), {
-      status: 500,
+      status: 400, // Bad Request for validation errors
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

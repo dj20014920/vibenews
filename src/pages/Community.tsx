@@ -32,6 +32,15 @@ export default function Community() {
   const [activeTab, setActiveTab] = useState("popular");
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeRoom, setActiveRoom] = useState<string>('all');
+
+  const rooms = [
+    { value: "all", label: "전체" },
+    { value: "room:info", label: "정보방" },
+    { value: "room:hiring", label: "구인방" },
+    { value: "room:promo", label: "홍보방" },
+    { value: "room:general", label: "자유토론" },
+  ];
 
   useEffect(() => {
     const load = async () => {
@@ -41,6 +50,10 @@ export default function Community() {
           .from('community_posts')
           .select('*')
           .eq('is_hidden', false);
+
+        if (activeRoom !== 'all') {
+          query = query.contains('tags', [activeRoom]);
+        }
 
         if (activeTab === 'featured') {
           query = query.eq('is_featured', true).order('created_at', { ascending: false });
@@ -60,7 +73,7 @@ export default function Community() {
       }
     };
     load();
-  }, [activeTab]);
+  }, [activeTab, activeRoom]);
 
   const PostCard = ({ post }: { post: CommunityPost }) => (
     <Card className="hover:shadow-lg transition-shadow">
@@ -169,27 +182,45 @@ export default function Community() {
         </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-[600px] grid-cols-3">
-          <TabsTrigger value="popular">인기글</TabsTrigger>
-          <TabsTrigger value="recent">최신글</TabsTrigger>
-          <TabsTrigger value="featured">추천글</TabsTrigger>
-        </TabsList>
+      <div className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full max-w-[600px] grid-cols-3">
+            <TabsTrigger value="popular">인기글</TabsTrigger>
+            <TabsTrigger value="recent">최신글</TabsTrigger>
+            <TabsTrigger value="featured">추천글</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-        {["popular","recent","featured"].map((tab) => (
-          <TabsContent key={tab} value={tab} className="space-y-6">
+        <div className="flex items-center gap-2 flex-wrap border-b pb-4">
+          <span className="text-sm font-semibold mr-2">카테고리:</span>
+          {rooms.map(room => (
+            <Button
+              key={room.value}
+              variant={activeRoom === room.value ? "default" : "outline"}
+              size="sm"
+              onClick={() => setActiveRoom(room.value)}
+            >
+              {room.label}
+            </Button>
+          ))}
+        </div>
+
+        <div className="space-y-6">
             {loading ? (
               <div className="text-center text-muted-foreground py-8">불러오는 중...</div>
             ) : (
               <div className="space-y-4">
-                {posts.map((post) => (
+                {posts.length > 0 ? posts.map((post) => (
                   <PostCard key={post.id} post={post} />
-                ))}
+                )) : (
+                  <div className="text-center text-muted-foreground py-8">
+                    이 카테고리에는 아직 글이 없습니다.
+                  </div>
+                )}
               </div>
             )}
-          </TabsContent>
-        ))}
-      </Tabs>
+        </div>
+      </div>
     </div>
   );
 }

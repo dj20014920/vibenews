@@ -8,7 +8,7 @@ const corsHeaders = {
 
 interface SearchRequest {
   query: string;
-  type?: 'all' | 'news' | 'community';
+  type?: 'all' | 'news' | 'community' | 'comment';
   tags?: string[];
   sortBy?: 'relevance' | 'date' | 'popularity';
   limit?: number;
@@ -53,6 +53,7 @@ serve(async (req) => {
 
     let newsResults: any[] = [];
     let communityResults: any[] = [];
+    let commentResults: any[] = [];
 
     // Search news articles
     if (type === 'all' || type === 'news') {
@@ -193,8 +194,44 @@ serve(async (req) => {
       }
     }
 
+    // Search comments
+    if (type === 'all' || type === 'comment') {
+      const { data: comments, error: commentsError } = await supabase
+        .from('comments')
+        .select(`
+          id,
+          content,
+          created_at,
+          author_id,
+          is_anonymous,
+          anonymous_author_id,
+          article:news_articles(id, title),
+          post:community_posts(id, title)
+        `)
+        .eq('is_hidden', false)
+        .ilike('content', `%${searchTerm}%`)
+        .range(offset, offset + limit - 1);
+
+      if (commentsError) {
+        console.error('Comment search error:', commentsError);
+      } else {
+        commentResults = (comments || []).map(comment => {
+          const parent = comment.article || comment.post;
+          const parentType = comment.article ? 'news' : 'community';
+          return {
+            ...comment,
+            type: 'comment',
+            parent_title: parent?.title,
+            parent_url: `/${parentType}/${parent?.id}#comment-${comment.id}`,
+            snippet: generateSnippet(comment.content, searchTerm),
+            relevance_score: calculateRelevanceScore(comment, searchTerm)
+          }
+        });
+      }
+    }
+
     // Combine and sort results
-    let allResults = [...newsResults, ...communityResults];
+    let allResults = [...newsResults, ...communityResults, ...commentResults];
 
     if (sortBy === 'relevance') {
       allResults.sort((a, b) => b.relevance_score - a.relevance_score);
@@ -283,9 +320,9 @@ function calculateRelevanceScore(item: any, searchTerm: string): number {
     }
   }
   
-  // Content matches
+  // Content matches are most important for comments
   if (item.content?.toLowerCase().includes(lowerTerm)) {
-    score += 5;
+    score += item.type === 'comment' ? 15 : 5;
   }
   
   if (item.summary?.toLowerCase().includes(lowerTerm)) {

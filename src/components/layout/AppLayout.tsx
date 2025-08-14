@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Link } from "react-router-dom"
 import { User, LogOut, Settings } from "lucide-react"
+import { FloatingDiscoveryMenu } from "./FloatingDiscoveryMenu"
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -80,6 +81,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             {children}
           </main>
         </div>
+        <FloatingDiscoveryMenu />
       </div>
     </SidebarProvider>
   )

@@ -1,10 +1,36 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const createCommentSchema = z.object({
+  content_type: z.enum(["news_article", "community_post"]),
+  content_id: z.string().uuid("유효한 콘텐츠 ID가 아닙니다."),
+  content: z.string().min(1, "댓글 내용은 비워둘 수 없습니다.").max(5000, "댓글은 5000자를 초과할 수 없습니다."),
+  parent_id: z.string().uuid("유효한 부모 댓글 ID가 아닙니다.").optional().nullable(),
+  is_anonymous: z.boolean().optional().default(false),
+  anonymous_author_name: z.string().max(30, "익명 이름은 30자를 초과할 수 없습니다.").optional(),
+});
+
+const updateCommentSchema = z.object({
+  comment_id: z.string().uuid("유효한 댓글 ID가 아닙니다."),
+  content: z.string().min(1, "댓글 내용은 비워둘 수 없습니다.").max(5000, "댓글은 5000자를 초과할 수 없습니다."),
+});
+
+const deleteCommentSchema = z.object({
+  comment_id: z.string().uuid("유효한 댓글 ID가 아닙니다."),
+});
+
+const getCommentsSchema = z.object({
+  content_type: z.enum(["news_article", "community_post"]),
+  content_id: z.string().uuid("유효한 콘텐츠 ID가 아닙니다."),
+  limit: z.number().int().min(1).max(100).optional().default(50),
+  offset: z.number().int().min(0).optional().default(0),
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -29,32 +55,26 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    const { action, ...data } = await req.json();
+    const body = await req.json();
+    const { action, ...data } = body;
     const user_id = userData.user.id;
 
     if (action === "create") {
-      const { content_type, content_id, content, parent_id, is_anonymous, anonymous_author_name } = data;
-
-      if (!content_type || !content_id || !content) {
-        throw new Error("Missing required fields for comment creation");
-      }
-
-      if (!["news_article", "community_post"].includes(content_type)) {
-        throw new Error("Invalid content_type");
-      }
+      const validatedData = createCommentSchema.parse(data);
+      const { content_type, content_id, content, parent_id, is_anonymous, anonymous_author_name } = validatedData;
 
       const commentData: any = {
         content,
         author_id: user_id,
-        parent_id: parent_id || null,
-        is_anonymous: is_anonymous || false,
+        parent_id,
+        is_anonymous,
         anonymous_author_name: is_anonymous ? (anonymous_author_name || `익명_${Math.random().toString(36).substr(2, 6)}`) : null,
         anonymous_author_id: is_anonymous ? `anonymous_${Math.random().toString(36).substr(2, 8)}` : null
       };
 
       if (content_type === "news_article") {
         commentData.article_id = content_id;
-      } else if (content_type === "community_post") {
+      } else { // community_post
         commentData.post_id = content_id;
       }
 
@@ -116,11 +136,7 @@ serve(async (req) => {
       });
 
     } else if (action === "update") {
-      const { comment_id, content } = data;
-
-      if (!comment_id || !content) {
-        throw new Error("Missing comment_id or content for update");
-      }
+      const { comment_id, content } = updateCommentSchema.parse(data);
 
       // Check if user owns the comment
       const { data: existingComment } = await supabaseClient
@@ -154,11 +170,7 @@ serve(async (req) => {
       });
 
     } else if (action === "delete") {
-      const { comment_id } = data;
-
-      if (!comment_id) {
-        throw new Error("Missing comment_id for deletion");
-      }
+      const { comment_id } = deleteCommentSchema.parse(data);
 
       // Check if user owns the comment
       const { data: existingComment } = await supabaseClient
@@ -186,11 +198,7 @@ serve(async (req) => {
       });
 
     } else if (action === "get") {
-      const { content_type, content_id, limit = 50, offset = 0 } = data;
-
-      if (!content_type || !content_id) {
-        throw new Error("Missing content_type or content_id for getting comments");
-      }
+      const { content_type, content_id, limit, offset } = getCommentsSchema.parse(data);
 
       let query = supabaseClient
         .from("comments")
@@ -201,10 +209,8 @@ serve(async (req) => {
 
       if (content_type === "news_article") {
         query = query.eq("article_id", content_id);
-      } else if (content_type === "community_post") {
+      } else { // community_post
         query = query.eq("post_id", content_id);
-      } else {
-        throw new Error("Invalid content_type");
       }
 
       const { data: comments, error: selectError } = await query;
@@ -224,11 +230,15 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Error in manage-comments function:", error);
+    const errorMessage = error instanceof z.ZodError
+      ? error.errors.map(e => e.message).join(', ')
+      : error.message;
+
     return new Response(JSON.stringify({ 
       success: false, 
-      error: error.message 
+      error: errorMessage
     }), {
-      status: 500,
+      status: 400, // Bad Request for validation errors
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

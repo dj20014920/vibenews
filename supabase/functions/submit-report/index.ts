@@ -1,10 +1,20 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const submitReportSchema = z.object({
+  content_type: z.enum(["news_article", "community_post", "comment"]),
+  content_id: z.string().uuid("유효한 콘텐츠 ID가 아닙니다."),
+  reason: z.string().min(5, "신고 사유는 5자 이상이어야 합니다.").max(500, "신고 사유는 500자를 초과할 수 없습니다."),
+  report_details: z.object({}).passthrough().optional().default({}),
+  reported_user_id: z.string().uuid("유효한 사용자 ID가 아닙니다.").optional().nullable(),
+});
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -29,22 +39,9 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    const { 
-      content_type, 
-      content_id, 
-      reason, 
-      report_details = {}, 
-      reported_user_id = null 
-    } = await req.json();
-
-    if (!content_type || !content_id || !reason) {
-      throw new Error("content_type, content_id, and reason are required");
-    }
-
-    const validContentTypes = ["news_article", "community_post", "comment"];
-    if (!validContentTypes.includes(content_type)) {
-      throw new Error(`Invalid content_type. Must be one of: ${validContentTypes.join(", ")}`);
-    }
+    const body = await req.json();
+    const validatedData = submitReportSchema.parse(body);
+    const { content_type, content_id, reason, report_details, reported_user_id } = validatedData;
 
     const user_id = userData.user.id;
 
@@ -58,7 +55,7 @@ serve(async (req) => {
       whereClause.article_id = content_id;
     } else if (content_type === "community_post") {
       whereClause.post_id = content_id;
-    } else if (content_type === "comment") {
+    } else { // comment
       whereClause.comment_id = content_id;
     }
 
@@ -73,6 +70,7 @@ serve(async (req) => {
         success: false,
         message: "You have already reported this content"
       }), {
+        status: 409, // Conflict
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -90,7 +88,7 @@ serve(async (req) => {
       reportData.article_id = content_id;
     } else if (content_type === "community_post") {
       reportData.post_id = content_id;
-    } else if (content_type === "comment") {
+    } else { // comment
       reportData.comment_id = content_id;
     }
 
@@ -146,11 +144,15 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Error in submit-report function:", error);
+    const errorMessage = error instanceof z.ZodError
+      ? error.errors.map(e => e.message).join(', ')
+      : error.message;
+
     return new Response(JSON.stringify({ 
       success: false, 
-      error: error.message 
+      error: errorMessage
     }), {
-      status: 500,
+      status: 400, // Bad Request for validation errors
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

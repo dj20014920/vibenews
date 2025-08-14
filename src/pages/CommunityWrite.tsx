@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, X, Plus, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,6 +26,14 @@ const CommunityWrite = () => {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [room, setRoom] = useState<string>("");
+
+  const rooms = [
+    { value: "room:info", label: "정보방" },
+    { value: "room:hiring", label: "구인방" },
+    { value: "room:promo", label: "홍보방" },
+    { value: "room:general", label: "자유토론" },
+  ];
 
   // 로그인 체크
   if (!user) {
@@ -80,10 +89,12 @@ const CommunityWrite = () => {
     setIsSubmitting(true);
 
     try {
+      const finalTags = room ? [...tags, room] : tags;
+
       const postData = {
         title: title.trim(),
         content: content.trim(),
-        tags,
+        tags: finalTags,
         tools_used: toolsUsed,
         author_id: isAnonymous ? null : user.id,
         anonymous_author_id: isAnonymous ? `익명_${user.id.slice(0, 8)}` : null,
@@ -241,6 +252,21 @@ const CommunityWrite = () => {
             <p className="text-xs text-muted-foreground text-right">
               {title.length}/100
             </p>
+          </div>
+
+          {/* Room Selector */}
+          <div className="space-y-2">
+            <Label htmlFor="room">카테고리 (방 선택)</Label>
+            <Select onValueChange={setRoom} value={room}>
+              <SelectTrigger id="room" className="w-full">
+                <SelectValue placeholder="카테고리를 선택하세요..." />
+              </SelectTrigger>
+              <SelectContent>
+                {rooms.map(r => (
+                  <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* 내용 */}

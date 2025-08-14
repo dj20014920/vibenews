@@ -1,6 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0';
+import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,11 +11,79 @@ interface TrendingScore {
   content_id: string;
   content_type: string;
   trending_score: number;
+  hot_score: number;
   velocity_score: number;
   engagement_score: number;
   recency_score: number;
   quality_score: number;
   calculated_at: string;
+}
+
+const processContentType = async (
+  supabase: SupabaseClient,
+  contentType: 'news_article' | 'community_post',
+  now: Date,
+  sevenDaysAgo: Date
+): Promise<TrendingScore[]> => {
+  const isNews = contentType === 'news_article';
+  const tableName = isNews ? 'news_articles' : 'community_posts';
+  const dateColumn = isNews ? 'published_at' : 'created_at';
+  const commentLinkColumn = isNews ? 'article_id' : 'post_id';
+
+  const { data: posts, error } = await supabase
+    .from(tableName)
+    .select(`id, view_count, like_count, ${dateColumn}, created_at`)
+    .eq('is_hidden', false)
+    .gte(dateColumn, sevenDaysAgo.toISOString());
+
+  if (error) throw error;
+
+  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const scores: TrendingScore[] = [];
+
+  for (const post of posts || []) {
+    // Get recent activity
+    const { count: recent_likes } = await supabase
+      .from('likes')
+      .select('*', { count: 'exact', head: true })
+      .eq(commentLinkColumn, post.id)
+      .gte('created_at', twentyFourHoursAgo.toISOString());
+
+    const { count: recent_comments } = await supabase
+      .from('comments')
+      .select('*', { count: 'exact', head: true })
+      .eq(commentLinkColumn, post.id)
+      .gte('created_at', twentyFourHoursAgo.toISOString());
+
+    const { count: total_comments } = await supabase
+        .from("comments")
+        .select("*", { count: "exact", head: true })
+        .eq(commentLinkColumn, post.id);
+
+    const hotScore = calculateHotScore({
+      created_at: post[dateColumn] || post.created_at,
+      recent_likes: recent_likes || 0,
+      recent_comments: recent_comments || 0,
+    });
+
+    const trendingScore = calculateTrendingScore({
+      view_count: post.view_count || 0,
+      like_count: post.like_count || 0,
+      comment_count: total_comments || 0,
+      created_at: post[dateColumn] || post.created_at,
+      content_type: contentType
+    });
+
+    scores.push({
+      content_id: post.id,
+      content_type: contentType,
+      hot_score: hotScore,
+      ...trendingScore,
+      calculated_at: now.toISOString()
+    });
+  }
+
+  return scores;
 }
 
 serve(async (req) => {
@@ -24,9 +92,9 @@ serve(async (req) => {
   }
 
   try {
-    const { action = 'calculate_all' } = await req.json();
+    const { contentType = 'all' } = await req.json(); // 'all', 'news', 'community'
     
-    console.log(`Starting trending algorithm calculation: ${action}`);
+    console.log(`Starting trending algorithm calculation for: ${contentType}`);
     
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -37,65 +105,16 @@ serve(async (req) => {
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    // 뉴스 기사 트렌딩 계산
-    const { data: newsArticles, error: newsError } = await supabase
-      .from('news_articles')
-      .select(`
-        id, title, view_count, like_count, published_at, created_at,
-        comments:comments(count)
-      `)
-      .eq('is_hidden', false)
-      .gte('published_at', sevenDaysAgo.toISOString());
+    let trendingScores: TrendingScore[] = [];
 
-    if (newsError) throw newsError;
-
-    // 커뮤니티 포스트 트렌딩 계산
-    const { data: communityPosts, error: postsError } = await supabase
-      .from('community_posts')
-      .select(`
-        id, title, view_count, like_count, comment_count, created_at
-      `)
-      .eq('is_hidden', false)
-      .gte('created_at', sevenDaysAgo.toISOString());
-
-    if (postsError) throw postsError;
-
-    const trendingScores: TrendingScore[] = [];
-
-    // 뉴스 기사 점수 계산
-    for (const article of newsArticles || []) {
-      const score = calculateTrendingScore({
-        view_count: article.view_count || 0,
-        like_count: article.like_count || 0,
-        comment_count: article.comments?.[0]?.count || 0,
-        created_at: article.published_at || article.created_at,
-        content_type: 'news_article'
-      });
-
-      trendingScores.push({
-        content_id: article.id,
-        content_type: 'news_article',
-        ...score,
-        calculated_at: now.toISOString()
-      });
+    if (contentType === 'all' || contentType === 'news') {
+      const newsScores = await processContentType(supabase, 'news_article', now, sevenDaysAgo);
+      trendingScores.push(...newsScores);
     }
 
-    // 커뮤니티 포스트 점수 계산
-    for (const post of communityPosts || []) {
-      const score = calculateTrendingScore({
-        view_count: post.view_count || 0,
-        like_count: post.like_count || 0,
-        comment_count: post.comment_count || 0,
-        created_at: post.created_at,
-        content_type: 'community_post'
-      });
-
-      trendingScores.push({
-        content_id: post.id,
-        content_type: 'community_post',
-        ...score,
-        calculated_at: now.toISOString()
-      });
+    if (contentType === 'all' || contentType === 'community') {
+      const communityScores = await processContentType(supabase, 'community_post', now, sevenDaysAgo);
+      trendingScores.push(...communityScores);
     }
 
     // 기존 트렌딩 스코어 삭제
@@ -126,6 +145,9 @@ serve(async (req) => {
         top_trending: trendingScores
           .sort((a, b) => b.trending_score - a.trending_score)
           .slice(0, 10),
+        top_hot: trendingScores
+          .sort((a, b) => b.hot_score - a.hot_score)
+          .slice(0, 10),
         message: `트렌딩 알고리즘 계산 완료. ${trendingScores.length}개 콘텐츠 처리됨`
       }),
       {
@@ -147,6 +169,28 @@ serve(async (req) => {
     );
   }
 });
+
+function calculateHotScore({
+  created_at,
+  recent_likes,
+  recent_comments
+}: {
+  created_at: string;
+  recent_likes: number;
+  recent_comments: number;
+}) {
+  const now = new Date();
+  const contentDate = new Date(created_at);
+  const hoursAgo = Math.max(1, (now.getTime() - contentDate.getTime()) / (1000 * 60 * 60)); // Prevent division by zero
+
+  const rawScore = (recent_likes * 5) + (recent_comments * 10);
+
+  // Gravity formula for time decay
+  const gravity = 1.8;
+  const hotScore = rawScore / Math.pow(hoursAgo + 2, gravity);
+
+  return Math.round(hotScore * 100) / 100;
+}
 
 function calculateTrendingScore({
   view_count,
@@ -189,8 +233,8 @@ function calculateTrendingScore({
 
   // 4. 품질 점수 (Quality Score) - 컨텐츠 타입별 기본 점수
   const base_quality_score = content_type === 'news_article' ? 80 : 70;
-  const quality_multiplier = like_count > 0 ? (like_count / (like_count + view_count * 0.01)) : 0.5;
-  const quality_score = base_quality_score * Math.min(quality_multiplier * 2, 1.5);
+  const quality_multiplier = like_count > 0 && view_count > 0 ? (like_count / view_count) * 10 : 0.5;
+  const quality_score = base_quality_score * Math.min(quality_multiplier, 1.5);
 
   // 5. 최종 트렌딩 점수 계산
   const trending_score = (

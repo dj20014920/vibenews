@@ -1,5 +1,6 @@
 import { Home, Newspaper, Users, Search, Bookmark, Settings, Code2, GraduationCap, TrendingUp, Shield, Crown } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 
 import {
   Sidebar,
@@ -13,33 +14,33 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-const mainItems = [
-  { title: "홈", url: "/", icon: Home },
-  { title: "뉴스", url: "/news", icon: Newspaper },
-  { title: "커뮤니티", url: "/community", icon: Users },
-  { title: "검색", url: "/search", icon: Search },
-]
-
-const toolsItems = [
-  { title: "도구 비교", url: "/tools", icon: Code2 },
-  { title: "학습 경로", url: "/learning", icon: GraduationCap },
-  { title: "트렌드", url: "/trends", icon: TrendingUp },
-]
-
-const userItems = [
-  { title: "북마크", url: "/bookmarks", icon: Bookmark },
-  { title: "구독", url: "/subscription", icon: Crown },
-  { title: "설정", url: "/settings", icon: Settings },
-]
-
-const adminItems = [
-  { title: "관리자", url: "/admin", icon: Shield },
-]
-
 export function AppSidebar() {
+  const { t } = useTranslation();
   const { state } = useSidebar()
   const location = useLocation()
   const currentPath = location.pathname
+
+  const mainItems = [
+    { title: t('sidebar.news'), url: "/news", icon: Newspaper },
+    { title: t('sidebar.community'), url: "/community", icon: Users },
+    { title: t('sidebar.search'), url: "/search", icon: Search },
+  ]
+
+  const toolsItems = [
+    { title: t('sidebar.tools'), url: "/tools", icon: Code2 },
+    { title: "학습 경로", url: "/learning", icon: GraduationCap },
+    { title: "트렌드", url: "/trends", icon: TrendingUp },
+  ]
+
+  const userItems = [
+    { title: t('sidebar.bookmarks'), url: "/bookmarks", icon: Bookmark },
+    { title: "구독", url: "/subscription", icon: Crown },
+    { title: "설정", url: "/settings", icon: Settings },
+  ]
+
+  const adminItems = [
+    { title: "관리자", url: "/admin", icon: Shield },
+  ]
 
   const isActive = (path: string) => currentPath === path
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
@@ -54,6 +55,14 @@ export function AppSidebar() {
           <SidebarGroupLabel>메인</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink to="/" end className={getNavCls}>
+                    <Home className="mr-2 h-4 w-4" />
+                    {state !== "collapsed" && <span>홈</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               {mainItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>

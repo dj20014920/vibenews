@@ -18,6 +18,38 @@ interface ContentQuality {
   recommended_tags: string[];
 }
 
+const SPAM_KEYWORDS = ["보증", "수익", "클릭", "대출", "도박", "무료거부", "카톡", "상담"];
+const URL_SHORTENERS = ["bit.ly", "t.co", "goo.gl", "me2.do"];
+const MAX_LINKS = 4;
+
+function preCheckSpam(title: string, content: string): { isSpam: boolean; reason: string | null } {
+  const lowerContent = content.toLowerCase();
+  const lowerTitle = title.toLowerCase();
+
+  // 1. Keyword Blocklist Check
+  for (const keyword of SPAM_KEYWORDS) {
+    if (lowerTitle.includes(keyword) || lowerContent.includes(keyword)) {
+      return { isSpam: true, reason: `keyword_block: ${keyword}` };
+    }
+  }
+
+  // 2. Excessive Links Check
+  const linkRegex = /https?:\/\//g;
+  const linkCount = (content.match(linkRegex) || []).length;
+  if (linkCount > MAX_LINKS) {
+    return { isSpam: true, reason: `excessive_links: ${linkCount}` };
+  }
+
+  // 3. URL Shortener Check
+  for (const shortener of URL_SHORTENERS) {
+    if (lowerContent.includes(shortener)) {
+      return { isSpam: true, reason: `url_shortener: ${shortener}` };
+    }
+  }
+
+  return { isSpam: false, reason: null };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -33,6 +65,36 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // --- Rule-based pre-check for obvious spam ---
+    const spamCheck = preCheckSpam(title, content);
+    if (spamCheck.isSpam) {
+      console.log(`Content flagged as spam by pre-check: ${spamCheck.reason}`);
+
+      const updatePayload = {
+        is_hidden: true,
+        tags: ['spam', spamCheck.reason],
+      };
+
+      const tableName = content_type === 'news_article' ? 'news_articles' : 'community_posts';
+      const { error } = await supabase
+        .from(tableName)
+        .update(updatePayload)
+        .eq('id', content_id);
+
+      if (error) throw error;
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          action_taken: 'hidden_by_filter',
+          reason: spamCheck.reason,
+          message: '콘텐츠가 스팸 필터에 의해 자동으로 숨김 처리되었습니다.'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // --- Proceed with AI evaluation if not spam ---
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured');

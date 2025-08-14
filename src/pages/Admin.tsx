@@ -43,6 +43,7 @@ import {
 } from 'lucide-react'
 import { NewsCollector } from '@/components/admin/NewsCollector'
 import { ContentAutomation } from '@/components/admin/ContentAutomation'
+import { ToolsManager } from '@/components/admin/ToolsManager'
 
 interface GlossaryTerm {
   id: string
@@ -291,6 +292,9 @@ export default function Admin() {
 
       {/* News Collector */}
       <NewsCollector />
+
+      {/* Tools Manager */}
+      <ToolsManager />
 
       {/* Header */}
       <div className="flex items-center justify-between">

@@ -14,20 +14,24 @@ import DOMPurify from "isomorphic-dompurify"
 
 interface SearchResult {
   id: string
-  type: 'news' | 'community'
-  title: string
+  type: 'news' | 'community' | 'comment'
+  title?: string // Comments don't have titles
+  content?: string
   snippet: string
   author?: string
   author_name?: string
-  tags: string[]
+  tags?: string[]
   created_at: string
   published_at?: string
-  view_count: number
-  like_count: number
+  view_count?: number
+  like_count?: number
   comment_count?: number
   thumbnail?: string
   source_url?: string
   relevance_score: number
+  // For comments
+  parent_title?: string
+  parent_url?: string
 }
 
 interface SearchResponse {
@@ -119,7 +123,7 @@ export default function Search() {
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">검색</h1>
         <p className="text-muted-foreground">
-          뉴스와 커뮤니티 글을 검색하세요
+          뉴스와 커뮤니티 글, 댓글을 통합 검색하세요
         </p>
       </div>
 
@@ -188,10 +192,11 @@ export default function Search() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex justify-between items-center">
-          <TabsList className="grid grid-cols-3 w-full max-w-[400px]">
+          <TabsList className="grid grid-cols-4 w-full max-w-[500px]">
             <TabsTrigger value="all">전체</TabsTrigger>
             <TabsTrigger value="news">뉴스</TabsTrigger>
             <TabsTrigger value="community">커뮤니티</TabsTrigger>
+            <TabsTrigger value="comment">댓글</TabsTrigger>
           </TabsList>
           
           {hasSearched && (
@@ -221,103 +226,12 @@ export default function Search() {
           ) : hasSearched ? (
             searchResults.length > 0 ? (
               <div className="space-y-4">
-                {searchResults.map((result) => (
-                  <Card key={`${result.type}-${result.id}`} className="hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant={result.type === 'news' ? 'default' : 'secondary'}>
-                              {result.type === 'news' ? '뉴스' : '커뮤니티'}
-                            </Badge>
-                            {result.type === 'news' && result.source_url && (
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-auto p-1"
-                                asChild
-                              >
-                                <a href={result.source_url} target="_blank" rel="noopener noreferrer">
-                                  <ExternalLink className="h-3 w-3" />
-                                </a>
-                              </Button>
-                            )}
-                          </div>
-                          <CardTitle className="text-lg leading-tight">
-                            <a 
-                              href={result.type === 'news' ? `/news/${result.id}` : `/community/post/${result.id}`}
-                              className="hover:text-primary transition-colors"
-                            >
-                              {result.title}
-                            </a>
-                          </CardTitle>
-                        </div>
-                        {result.thumbnail && (
-                          <img 
-                            src={result.thumbnail} 
-                            alt="" 
-                            className="w-20 h-20 object-cover rounded"
-                          />
-                        )}
-                      </div>
-                    </CardHeader>
-                    
-                    <CardContent className="pt-0">
-                      <div 
-                        className="text-sm text-muted-foreground mb-3 line-clamp-3"
-                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(result.snippet) }}
-                      />
-                      
-                      <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {formatDate(result.published_at || result.created_at)}
-                        </div>
-                        
-                        {result.author_name && (
-                          <div>작성자: {result.author_name}</div>
-                        )}
-                        
-                        <div className="flex items-center gap-1">
-                          <Eye className="h-3 w-3" />
-                          {result.view_count}
-                        </div>
-                        
-                        <div className="flex items-center gap-1">
-                          <Heart className="h-3 w-3" />
-                          {result.like_count}
-                        </div>
-                        
-                        {result.comment_count !== undefined && (
-                          <div className="flex items-center gap-1">
-                            <MessageCircle className="h-3 w-3" />
-                            {result.comment_count}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {result.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-3">
-                          {result.tags.slice(0, 5).map((tag) => (
-                            <Badge 
-                              key={tag} 
-                              variant="outline" 
-                              className="text-xs cursor-pointer hover:bg-primary/10"
-                              onClick={() => handleTagToggle(tag)}
-                            >
-                              {tag}
-                            </Badge>
-                          ))}
-                          {result.tags.length > 5 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{result.tags.length - 5}
-                            </Badge>
-                          )}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
+                {searchResults.map((result) => {
+                  if (result.type === 'comment') {
+                    return <CommentSearchResultCard key={result.id} result={result} />;
+                  }
+                  return <ContentSearchResultCard key={`${result.type}-${result.id}`} result={result} />;
+                })}
               </div>
             ) : (
               <div className="text-center py-12">
@@ -340,5 +254,87 @@ export default function Search() {
         </div>
       </Tabs>
     </div>
+  )
+}
+
+const ContentSearchResultCard = ({ result }: { result: SearchResult }) => {
+  const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('ko-KR');
+
+  return (
+    <Card className="hover:shadow-md transition-shadow">
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-start gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <Badge variant={result.type === 'news' ? 'default' : 'secondary'}>
+                {result.type === 'news' ? '뉴스' : '커뮤니티'}
+              </Badge>
+              {result.type === 'news' && result.source_url && (
+                <Button variant="ghost" size="sm" className="h-auto p-1" asChild>
+                  <a href={result.source_url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </Button>
+              )}
+            </div>
+            <CardTitle className="text-lg leading-tight">
+              <a href={result.type === 'news' ? `/news/${result.id}` : `/community/post/${result.id}`} className="hover:text-primary transition-colors">
+                {result.title}
+              </a>
+            </CardTitle>
+          </div>
+          {result.thumbnail && <img src={result.thumbnail} alt="" className="w-20 h-20 object-cover rounded" />}
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="text-sm text-muted-foreground mb-3 line-clamp-3" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(result.snippet) }} />
+        <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {formatDate(result.published_at || result.created_at)}</div>
+          {result.author_name && <div>작성자: {result.author_name}</div>}
+          <div className="flex items-center gap-1"><Eye className="h-3 w-3" /> {result.view_count}</div>
+          <div className="flex items-center gap-1"><Heart className="h-3 w-3" /> {result.like_count}</div>
+          {result.comment_count !== undefined && <div className="flex items-center gap-1"><MessageCircle className="h-3 w-3" /> {result.comment_count}</div>}
+        </div>
+        {result.tags && result.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-3">
+            {result.tags.slice(0, 5).map((tag) => <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>)}
+            {result.tags.length > 5 && <Badge variant="outline" className="text-xs">+{result.tags.length - 5}</Badge>}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+const CommentSearchResultCard = ({ result }: { result: SearchResult }) => {
+  const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('ko-KR');
+
+  return (
+    <Card className="hover:shadow-md transition-shadow">
+      <CardHeader>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <MessageCircle className="h-4 w-4" />
+          <span>댓글 검색 결과</span>
+        </div>
+        <p className="text-sm text-muted-foreground pt-2">
+          <span className="font-semibold">"{result.parent_title}"</span> 글에 달린 댓글
+        </p>
+      </CardHeader>
+      <CardContent>
+        <div className="border-l-4 pl-4 py-2 italic space-y-2">
+          <div className="text-base" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(result.snippet) }} />
+          <div className="text-xs text-muted-foreground">
+            {result.author_name || '익명'} • {formatDate(result.created_at)}
+          </div>
+        </div>
+        <div className="pt-3">
+          <Button variant="outline" size="sm" asChild>
+            <a href={result.parent_url}>
+              원본 글로 이동 <ExternalLink className="ml-2 h-3 w-3" />
+            </a>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
