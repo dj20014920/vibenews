@@ -98,582 +98,123 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
   
   _요구사항: 15.1, 15.2, 15.3, 15.4, 15.5_
 
-### Phase 2: 인증 시스템 구현
+### Phase 2: 인증 시스템 구현 ✅ 일부 완료
 
-- [ ] 4. Supabase 설정 및 기본 데이터베이스 구조
+- [x] 4. Supabase 설정 및 기본 데이터베이스 구조
   
-  **4.1 Supabase 프로젝트 생성**
-  1. https://supabase.com 에서 새 프로젝트 생성
-  2. 프로젝트 URL과 anon key를 .env.local에 추가
-  3. SQL Editor에서 다음 테이블들을 순서대로 생성
+  **구현 내용:**
+  - ✅ **Row Level Security (RLS) 정책 적용:** `news_articles`, `community_posts`, `comments` 등 핵심 테이블에 RLS를 활성화하고, 사용자가 자신의 데이터만 수정/삭제할 수 있도록 정책을 수립했습니다. (`...add_rls_policies.sql`)
+  - ✅ **보안 함수 및 트리거 추가:**
+    - 조회수/댓글 수를 서버에서 안전하게 업데이트하는 DB 함수/트리거를 구현하여 클라이언트 측 조작을 방지했습니다.
+    - 댓글 소프트 삭제를 위한 `is_deleted` 컬럼을 추가하고, 관련 트리거를 업데이트했습니다. (`...add_soft_delete_to_comments.sql`)
+    - 익명 게시글의 작성자 ID를 관리자만 볼 수 있도록 하는 보안 뷰(`v_community_posts`, `v_comments`)를 생성했습니다. (`...add_anonymity_logic.sql`)
+    - 게시글과 하위 댓글을 트랜잭션으로 함께 삭제하는 RPC 함수(`delete_post_and_comments`)를 구현했습니다. (`...add_delete_post_function.sql`)
+  - ✅ **성능 최적화 스키마 추가:**
+    - 뉴스 기사 검색 속도 향상을 위해 Full-Text Search용 `tsvector` 컬럼과 `GIN` 인덱스를 추가했습니다.
+    - 뉴스 목록에서 N+1 쿼리 문제를 해결하기 위해 북마크 여부를 함께 가져오는 RPC 함수(`get_news_with_bookmarks`)를 구현했습니다. (`...add_performance_optimizations.sql`)
 
-  **4.2 사용자 테이블 생성 (SQL Editor에서 실행)**
-  ```sql
-  -- 사용자 프로필 테이블 (Supabase Auth 확장)
-  CREATE TABLE users (
-    id UUID REFERENCES auth.users(id) PRIMARY KEY,
-    email TEXT UNIQUE NOT NULL,
-    nickname TEXT UNIQUE NOT NULL,
-    avatar_url TEXT,
-    provider TEXT NOT NULL,
-    bio TEXT,
-    website_url TEXT,
-    github_username TEXT,
-    twitter_username TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-  );
+  **구현 의도:**
+  > 초기 분석 결과, 핵심 데이터 테이블에 RLS가 적용되지 않은 심각한 보안 문제가 발견되었습니다. 이를 해결하기 위해 모든 CUD(Create, Update, Delete) 작업에 대해 소유권(ownership)을 확인하는 RLS 정책을 최우선으로 적용했습니다. 또한, 클라이언트에서 직접 처리되던 카운트 로직은 데이터 무결성을 해칠 수 있어 모두 DB 트리거와 RPC로 이전하여 서버에서 안전하게 처리하도록 변경했습니다. 익명성 보장은 DB 뷰(View)를 통해 구현하여, 일반 사용자의 SELECT 쿼리에서는 작성자 ID가 노출되지 않도록 설계했습니다.
 
-  -- 사용자 테이블 RLS 정책
-  ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-
-  CREATE POLICY "Users can view all profiles" ON users
-    FOR SELECT USING (true);
-
-  CREATE POLICY "Users can update own profile" ON users
-    FOR UPDATE USING (auth.uid() = id);
-
-  CREATE POLICY "Users can insert own profile" ON users
-    FOR INSERT WITH CHECK (auth.uid() = id);
-  ```
-
-  **4.3 뉴스 기사 테이블 생성**
-  ```sql
-  -- 뉴스 기사 테이블
-  CREATE TABLE news_articles (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    title TEXT NOT NULL,
-    content TEXT NOT NULL,
-    content_simplified TEXT, -- 비개발자용 버전
-    summary TEXT NOT NULL,
-    source_url TEXT NOT NULL,
-    thumbnail TEXT,
-    tags TEXT[] DEFAULT '{}',
-    author TEXT,
-    published_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    like_count INTEGER DEFAULT 0,
-    view_count INTEGER DEFAULT 0,
-    is_featured BOOLEAN DEFAULT FALSE,
-    is_hidden BOOLEAN DEFAULT FALSE
-  );
-
-  -- 뉴스 기사 RLS 정책
-  ALTER TABLE news_articles ENABLE ROW LEVEL SECURITY;
-
-  CREATE POLICY "Anyone can view non-hidden articles" ON news_articles
-    FOR SELECT USING (is_hidden = false);
-  ```
-
-  **4.4 커뮤니티 게시글 테이블 생성**
-  ```sql
-  -- 커뮤니티 게시글 테이블
-  CREATE TABLE community_posts (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    title TEXT NOT NULL,
-    content TEXT NOT NULL,
-    content_simplified TEXT,
-    author_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    tags TEXT[] DEFAULT '{}',
-    tools_used TEXT[] DEFAULT '{}', -- 바이브 코딩 도구들
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    like_count INTEGER DEFAULT 0,
-    comment_count INTEGER DEFAULT 0,
-    view_count INTEGER DEFAULT 0,
-    is_featured BOOLEAN DEFAULT FALSE,
-    is_pinned BOOLEAN DEFAULT FALSE,
-    is_hidden BOOLEAN DEFAULT FALSE,
-    is_anonymous BOOLEAN DEFAULT FALSE,
-    anonymous_author_id TEXT
-  );
-
-  -- 커뮤니티 게시글 RLS 정책
-  ALTER TABLE community_posts ENABLE ROW LEVEL SECURITY;
-
-  CREATE POLICY "Anyone can view non-hidden posts" ON community_posts
-    FOR SELECT USING (is_hidden = false);
-
-  CREATE POLICY "Authenticated users can create posts" ON community_posts
-    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-
-  CREATE POLICY "Users can update own posts" ON community_posts
-    FOR UPDATE USING (auth.uid() = author_id);
-
-  CREATE POLICY "Users can delete own posts" ON community_posts
-    FOR DELETE USING (auth.uid() = author_id);
-  ```
-
-  **4.5 댓글 테이블 생성**
-  ```sql
-  -- 댓글 테이블 (뉴스와 커뮤니티 통합)
-  CREATE TABLE comments (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    content TEXT NOT NULL,
-    author_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    article_id UUID REFERENCES news_articles(id) ON DELETE CASCADE,
-    post_id UUID REFERENCES community_posts(id) ON DELETE CASCADE,
-    parent_id UUID REFERENCES comments(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    like_count INTEGER DEFAULT 0,
-    is_edited BOOLEAN DEFAULT FALSE,
-    is_hidden BOOLEAN DEFAULT FALSE,
-    is_anonymous BOOLEAN DEFAULT FALSE,
-    anonymous_author_id TEXT,
-    CONSTRAINT comment_target_check CHECK (
-      (article_id IS NOT NULL AND post_id IS NULL) OR
-      (article_id IS NULL AND post_id IS NOT NULL)
-    )
-  );
-
-  -- 댓글 RLS 정책
-  ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
-
-  CREATE POLICY "Anyone can view non-hidden comments" ON comments
-    FOR SELECT USING (is_hidden = false);
-
-  CREATE POLICY "Authenticated users can create comments" ON comments
-    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-
-  CREATE POLICY "Users can update own comments" ON comments
-    FOR UPDATE USING (auth.uid() = author_id);
-
-  CREATE POLICY "Users can delete own comments" ON comments
-    FOR DELETE USING (auth.uid() = author_id);
-  ```
-
-  **4.6 좋아요 테이블 생성**
-  ```sql
-  -- 좋아요 테이블
-  CREATE TABLE likes (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    article_id UUID REFERENCES news_articles(id) ON DELETE CASCADE,
-    post_id UUID REFERENCES community_posts(id) ON DELETE CASCADE,
-    comment_id UUID REFERENCES comments(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    CONSTRAINT like_target_check CHECK (
-      (article_id IS NOT NULL AND post_id IS NULL AND comment_id IS NULL) OR
-      (article_id IS NULL AND post_id IS NOT NULL AND comment_id IS NULL) OR
-      (article_id IS NULL AND post_id IS NULL AND comment_id IS NOT NULL)
-    ),
-    UNIQUE(user_id, article_id),
-    UNIQUE(user_id, post_id),
-    UNIQUE(user_id, comment_id)
-  );
-
-  -- 좋아요 RLS 정책
-  ALTER TABLE likes ENABLE ROW LEVEL SECURITY;
-
-  CREATE POLICY "Users can view all likes" ON likes
-    FOR SELECT USING (true);
-
-  CREATE POLICY "Users can manage own likes" ON likes
-    FOR ALL USING (auth.uid() = user_id);
-  ```
-
-  **4.7 좋아요 수 자동 업데이트 트리거**
-  ```sql
-  -- 좋아요 수 자동 업데이트 함수
-  CREATE OR REPLACE FUNCTION update_like_count()
-  RETURNS TRIGGER AS $$
-  BEGIN
-      IF TG_OP = 'INSERT' THEN
-          IF NEW.article_id IS NOT NULL THEN
-              UPDATE news_articles SET like_count = like_count + 1 WHERE id = NEW.article_id;
-          ELSIF NEW.post_id IS NOT NULL THEN
-              UPDATE community_posts SET like_count = like_count + 1 WHERE id = NEW.post_id;
-          ELSIF NEW.comment_id IS NOT NULL THEN
-              UPDATE comments SET like_count = like_count + 1 WHERE id = NEW.comment_id;
-          END IF;
-          RETURN NEW;
-      ELSIF TG_OP = 'DELETE' THEN
-          IF OLD.article_id IS NOT NULL THEN
-              UPDATE news_articles SET like_count = like_count - 1 WHERE id = OLD.article_id;
-          ELSIF OLD.post_id IS NOT NULL THEN
-              UPDATE community_posts SET like_count = like_count - 1 WHERE id = OLD.post_id;
-          ELSIF OLD.comment_id IS NOT NULL THEN
-              UPDATE comments SET like_count = like_count - 1 WHERE id = OLD.comment_id;
-          END IF;
-          RETURN OLD;
-      END IF;
-      RETURN NULL;
-  END;
-  $$ LANGUAGE plpgsql;
-
-  CREATE TRIGGER likes_count_trigger
-      AFTER INSERT OR DELETE ON likes
-      FOR EACH ROW EXECUTE FUNCTION update_like_count();
-  ```
-
-  **4.8 업데이트 시간 자동 갱신 함수**
-  ```sql
-  CREATE OR REPLACE FUNCTION update_updated_at_column()
-  RETURNS TRIGGER AS $$
-  BEGIN
-      NEW.updated_at = NOW();
-      RETURN NEW;
-  END;
-  $$ language 'plpgsql';
-
-  -- 각 테이블에 업데이트 트리거 적용
-  CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
-      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-  CREATE TRIGGER update_community_posts_updated_at BEFORE UPDATE ON community_posts
-      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-  CREATE TRIGGER update_comments_updated_at BEFORE UPDATE ON comments
-      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-  ```
-  
-  _요구사항: 7.3, 25.1_
+  _요구사항: 7.3, 25.1, 23.3_
 
 - [ ] 5. 소셜 로그인 시스템 구현
   
-  **5.1 Supabase Auth 설정 (Supabase Dashboard에서 설정)**
-  ```
-  Authentication > Settings > Auth Providers에서 활성화:
-  - Google OAuth
-  - GitHub OAuth
-  - 네이버 OAuth (Custom Provider로 설정)
-  - 카카오 OAuth (Custom Provider로 설정)
-  
-  각 Provider의 Client ID와 Client Secret 설정 필요
-  ```
+  **구현 내용:**
+  - 기존의 Google, GitHub, 일반 이메일 로그인은 정상 동작함을 확인했습니다.
+  - **(미완료)** 요구사항에 명시된 네이버, 카카오 소셜 로그인은 아직 구현되지 않았습니다.
 
-  **5.2 인증 훅 (src/hooks/useAuth.ts)**
-  ```typescript
-  'use client'
-  import { useState, useEffect, createContext, useContext } from 'react'
-  import { User as SupabaseUser } from '@supabase/supabase-js'
-  import { supabase } from '@/lib/supabase'
-  import { User } from '@/types'
+  **구현 의도:**
+  > 이번 작업에서는 새로운 로그인 방식 추가보다는, 기존 인증 시스템의 보안을 강화하고 인증된 사용자의 데이터 접근 권한을 명확히 하는 데 집중했습니다.
 
-  interface AuthContextType {
-    user: User | null
-    loading: boolean
-    signInWithGoogle: () => Promise<void>
-    signInWithGitHub: () => Promise<void>
-    signInWithNaver: () => Promise<void>
-    signInWithKakao: () => Promise<void>
-    signOut: () => Promise<void>
-  }
+  _요구사항: 3.1 (일부 완료), 3.2_
 
-  const AuthContext = createContext<AuthContextType | undefined>(undefined)
+- [x] 6. 사용자 프로필 및 마이페이지 관리 시스템
 
-  export function useAuth() {
-    const context = useContext(AuthContext)
-    if (context === undefined) {
-      throw new Error('useAuth must be used within an AuthProvider')
-    }
-    return context
-  }
+  **구현 내용:**
+  - ✅ **마이페이지 신규 구현:** 사용자가 자신이 작성한 게시글, 댓글, 북마크한 글을 한 곳에서 모아볼 수 있는 `/mypage`를 새로 구현했습니다.
+  - ✅ **프로필 페이지 기능 확장:** 기존에 준비되어 있던 프로필 페이지(`/profile/:userId`)에 실제로 해당 유저가 작성한 게시글과 댓글 목록이 표시되도록 기능을 구현했습니다.
+  - ✅ **작성자 링크 연결:** 커뮤니티 목록의 작성자 닉네임을 클릭하면 해당 사용자의 프로필 페이지로 이동하도록 링크를 연결했습니다.
 
-  export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<User | null>(null)
-    const [loading, setLoading] = useState(true)
+  **구현 의도:**
+  > 사용자가 자신의 활동 내역을 쉽게 추적하고 관리할 수 있도록, 명시적으로 요청하신 '마이페이지'를 별도로 구현했습니다. 또한, 다른 사용자의 프로필을 방문했을 때도 그 사용자의 활동을 볼 수 있도록 기존 프로필 페이지의 기능을 확장하여 커뮤니티 활성화를 유도하고자 했습니다.
 
-    useEffect(() => {
-      // 현재 세션 확인
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user) {
-          fetchUserProfile(session.user.id)
-        }
-        setLoading(false)
-      })
+  _요구사항: 3.2, 3.3, 3.4_
 
-      // 인증 상태 변경 감지
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
-          if (event === 'SIGNED_IN' && session?.user) {
-            await createOrUpdateUserProfile(session.user)
-            await fetchUserProfile(session.user.id)
-          } else if (event === 'SIGNED_OUT') {
-            setUser(null)
-          }
-          setLoading(false)
-        }
-      )
+### Phase 3: 뉴스 섹션 구현 ✅ 일부 완료
 
-      return () => subscription.unsubscribe()
-    }, [])
+- [x] 7. 뉴스 기사 표시 시스템
+- [x] 8. 뉴스 상호작용 기능
 
-    const fetchUserProfile = async (userId: string) => {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single()
+  **구현 내용:**
+  - ✅ **성능 최적화:** 뉴스 목록을 불러올 때 발생하던 N+1 쿼리 문제를 RPC 함수로 해결하여 데이터베이스 부하를 줄이고 로딩 속도를 개선했습니다.
+  - ✅ **보안 강화:** 클라이언트에서 처리되던 뉴스 조회수 증가 로직을 안전한 서버사이드 RPC 함수로 이전했습니다.
+  - ✅ **UI 개선:** 북마크 상태가 즉시 UI에 반영되도록 수정했습니다.
 
-      if (data && !error) {
-        setUser(data)
-      }
-    }
+  **구현 의도:**
+  > 뉴스 섹션은 사용자가 가장 먼저 접하는 페이지 중 하나이므로, 성능과 반응성을 최우선으로 고려했습니다. 특히 대량의 데이터가 예상되는 만큼, 비효율적인 쿼리를 최적화하여 확장성을 확보하는 데 중점을 두었습니다.
 
-    const createOrUpdateUserProfile = async (authUser: SupabaseUser) => {
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', authUser.id)
-        .single()
+  _요구사항: 1.1, 1.2, 1.3, 1.4, 6.1, 6.2, 6.3_
 
-      if (!existingUser) {
-        // 새 사용자 프로필 생성
-        const nickname = authUser.user_metadata?.full_name || 
-                        authUser.user_metadata?.name || 
-                        authUser.email?.split('@')[0] || 
-                        'User'
+- [ ] 9. 뉴스 필터링 및 정렬
+  - **(미완료)** 현재는 최신순/인기순 정렬만 구현되어 있으며, 태그별 필터링 기능은 UI만 있고 실제 로직은 연결되지 않았습니다.
+  - _요구사항: 4.7, 11.3_
 
-        await supabase.from('users').insert({
-          id: authUser.id,
-          email: authUser.email!,
-          nickname: `${nickname}_${Math.random().toString(36).substr(2, 4)}`,
-          avatar_url: authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture,
-          provider: authUser.app_metadata?.provider || 'email'
-        })
-      }
-    }
+### Phase 4: 커뮤니티 섹션 ✅ 완료
 
-    const signInWithGoogle = async () => {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`
-        }
-      })
-      if (error) throw error
-    }
+- [x] 10. 커뮤니티 글 작성 시스템
+- [x] 11. 익명 글쓰기 기능
+- [x] 12. 커뮤니티 글 표시 및 상호작용
 
-    const signInWithGitHub = async () => {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'github',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`
-        }
-      })
-      if (error) throw error
-    }
+  **구현 내용:**
+  - ✅ **게시글/댓글 수정 및 삭제 기능 구현:**
+    - 사용자는 자신의 글과 댓글만 수정/삭제할 수 있습니다. (RLS 정책으로 강제)
+    - **(핵심 비즈니스 로직)** 댓글이 달린 게시글, 대댓글이 달린 댓글은 **수정이 불가능**하고 삭제만 가능하도록 UI/UX를 구현했습니다.
+    - 게시글 삭제 시, 하위 댓글들이 모두 함께 삭제됩니다. (RPC 함수로 원자적 처리)
+    - 댓글 삭제 시, "삭제된 댓글입니다" 문구로 대체되며 대댓글은 유지됩니다. (**소프트 삭제** 방식 적용)
+  - ✅ **익명성 기능 강화:** DB 뷰를 통해 관리자가 아닌 이상 익명 사용자의 ID를 조회할 수 없도록 백엔드 단에서 원천적으로 차단했습니다.
+  - ✅ **UI 버그 수정:** 커뮤니티 목록에서 작성자의 닉네임과 아바타가 정상적으로 표시되고, 프로필 페이지로 링크되도록 수정했습니다.
 
-    const signInWithNaver = async () => {
-      // 네이버 OAuth는 Custom Provider로 구현
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'naver' as any,
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`
-        }
-      })
-      if (error) throw error
-    }
+  **구현 의도:**
+  > 수정/삭제 기능은 사용자 편의성과 데이터 무결성 사이의 균형을 맞추는 데 집중했습니다. 특히 '댓글이 달리면 수정 불가'라는 규칙은, 한 번 공개적으로 논의가 시작된 콘텐츠의 원본 맥락이 임의로 변경되는 것을 방지하여 커뮤니티의 신뢰도를 유지하기 위한 중요한 정책이라고 판단하여 명확하게 구현했습니다. 댓글을 소프트 삭제 방식으로 처리한 것 또한, 대댓글의 맥락을 유지하여 토론의 흐름이 끊기지 않도록 하기 위함입니다.
 
-    const signInWithKakao = async () => {
-      // 카카오 OAuth는 Custom Provider로 구현
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'kakao' as any,
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`
-        }
-      })
-      if (error) throw error
-    }
+  _요구사항: 2.1, 2.2, 2.3, 2.4, 3.2, 6.1, 6.3_
 
-    const signOut = async () => {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-    }
+### Phase 5: 검색 및 스크랩 ✅ 일부 완료
 
-    const value = {
-      user,
-      loading,
-      signInWithGoogle,
-      signInWithGitHub,
-      signInWithNaver,
-      signInWithKakao,
-      signOut
-    }
+- [ ] 13. 통합 검색 시스템
 
-    return (
-      <AuthContext.Provider value={value}>
-        {children}
-      </AuthContext.Provider>
-    )
-  }
-  ```
+  **구현 내용:**
+  - ✅ **검색 성능 최적화:** 뉴스 검색 시 `ilike` 대신 **Full-Text Search**를 사용하도록 백엔드 로직을 변경하여 검색 속도를 대폭 향상시켰습니다.
+  - **(미완료)** 현재는 뉴스 기사에 대해서만 FTS가 적용되었으며, 커뮤니티 글, 댓글까지 포함하는 통합 검색 UI 및 로직은 아직 구현되지 않았습니다.
 
-  **5.3 소셜 로그인 버튼 컴포넌트 (src/components/auth/SocialLoginButtons.tsx)**
-  ```typescript
-  'use client'
-  import { useState } from 'react'
-  import { useAuth } from '@/hooks/useAuth'
-  import { Github, Mail } from 'lucide-react'
+  _요구사항: 4.1 (일부 완료), 4.2, 4.3, 8.3_
 
-  export default function SocialLoginButtons() {
-    const { signInWithGoogle, signInWithGitHub, signInWithNaver, signInWithKakao } = useAuth()
-    const [loading, setLoading] = useState<string | null>(null)
+- [x] 14-15. 스크랩/태그 시스템
+  - **구현 내용:**
+    - ✅ 북마크(스크랩) 기능이 뉴스 및 커뮤니티 글에서 정상적으로 동작함을 확인하고, 데이터 로딩 방식을 최적화했습니다.
+    - ✅ 마이페이지와 프로필 페이지에서 북마크한 글 목록을 볼 수 있도록 구현했습니다.
+  - **(미완료)** 북마크 폴더 관리, 태그 추가, 메모 기능 등 고급 스크랩 기능은 아직 구현되지 않았습니다.
 
-    const handleSocialLogin = async (provider: string, loginFn: () => Promise<void>) => {
-      try {
-        setLoading(provider)
-        await loginFn()
-      } catch (error) {
-        console.error(`${provider} 로그인 실패:`, error)
-        alert(`${provider} 로그인에 실패했습니다. 다시 시도해주세요.`)
-      } finally {
-        setLoading(null)
-      }
-    }
+  _요구사항: 4.4, 4.5_
 
-    return (
-      <div className="space-y-3">
-        <button
-          onClick={() => handleSocialLogin('Google', signInWithGoogle)}
-          disabled={loading !== null}
-          className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          {loading === 'Google' ? '로그인 중...' : 'Google로 로그인'}
-        </button>
+---
 
-        <button
-          onClick={() => handleSocialLogin('GitHub', signInWithGitHub)}
-          disabled={loading !== null}
-          className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Github className="w-5 h-5 mr-3" />
-          {loading === 'GitHub' ? '로그인 중...' : 'GitHub로 로그인'}
-        </button>
+### **다음 작업자를 위한 가이드**
 
-        <button
-          onClick={() => handleSocialLogin('카카오', signInWithKakao)}
-          disabled={loading !== null}
-          className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-yellow-400 text-gray-900 hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <div className="w-5 h-5 mr-3 bg-gray-900 rounded" />
-          {loading === '카카오' ? '로그인 중...' : '카카오로 로그인'}
-        </button>
+안녕하세요! 이어서 작업을 진행해주셔서 감사합니다. 제가 진행한 작업의 핵심은 **보안과 성능의 기반을 다지는 것**과 **사용자 요청 핵심 기능(CRUD, 마이페이지)을 구현**하는 것이었습니다.
 
-        <button
-          onClick={() => handleSocialLogin('네이버', signInWithNaver)}
-          disabled={loading !== null}
-          className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-green-500 text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <div className="w-5 h-5 mr-3 bg-white rounded" />
-          {loading === '네이버' ? '로그인 중...' : '네이버로 로그인'}
-        </button>
-      </div>
-    )
-  }
-  ```
+**남아있는 주요 작업:**
 
-  **5.4 로그인 페이지 (src/app/login/page.tsx)**
-  ```typescript
-  'use client'
-  import { useEffect } from 'react'
-  import { useRouter } from 'next/navigation'
-  import { useAuth } from '@/hooks/useAuth'
-  import SocialLoginButtons from '@/components/auth/SocialLoginButtons'
+1.  **네이버/카카오 소셜 로그인 추가 (Task 5):** 현재는 Google/GitHub만 연동되어 있습니다. Supabase의 Custom Provider 설정을 통해 추가 구현이 필요합니다.
+2.  **프로필 수정 기능 (Task 6):** 사용자가 자신의 닉네임, 자기소개, 웹사이트 등을 수정할 수 있는 UI와 로직이 필요합니다.
+3.  **통합 검색 페이지 UI 구현 (Task 13):** 백엔드에 Full-Text Search 기반이 마련되었으니, 이를 활용하여 뉴스/커뮤니티/댓글을 한 번에 검색하고 탭으로 보여주는 UI를 구현해야 합니다.
+4.  **고급 스크랩 기능 (Task 14-15):** 현재의 단순 북마크 기능을 넘어, 폴더별로 관리하고 메모를 추가하는 등의 기능이 필요합니다.
+5.  **댓글에 대한 답글(대댓글) 기능:** 현재 댓글 시스템은 대댓글을 저장할 `parent_id` 필드는 있으나, 실제 답글을 작성하고 중첩하여 보여주는 UI/UX 로직이 구현되지 않았습니다.
 
-  export default function LoginPage() {
-    const { user, loading } = useAuth()
-    const router = useRouter()
+제가 구현한 RLS 정책과 RPC 함수들은 `supabase/migrations` 폴더에 모두 기록되어 있으니, 데이터베이스 스키마나 로직을 파악하실 때 참고하시면 큰 도움이 될 것입니다. 특히, 모든 `SELECT` 쿼리는 `v_community_posts`와 같은 **보안 뷰(View)**를 통해 조회해야 익명성 정책이 올바르게 적용된다는 점을 기억해주세요.
 
-    useEffect(() => {
-      if (user && !loading) {
-        router.push('/')
-      }
-    }, [user, loading, router])
-
-    if (loading) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-        </div>
-      )
-    }
-
-    if (user) {
-      return null // 리다이렉트 중
-    }
-
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          <div>
-            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-              VibeNews에 로그인
-            </h2>
-            <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-              AI 기반 바이브 코딩 뉴스와 커뮤니티에 참여하세요
-            </p>
-          </div>
-          
-          <div className="mt-8 space-y-6">
-            <SocialLoginButtons />
-            
-            <div className="text-center">
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                로그인하면 <a href="/terms" className="text-blue-600 hover:text-blue-500">이용약관</a>과{' '}
-                <a href="/privacy" className="text-blue-600 hover:text-blue-500">개인정보처리방침</a>에 동의하는 것으로 간주됩니다.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-  ```
-
-  **5.5 인증 콜백 페이지 (src/app/auth/callback/page.tsx)**
-  ```typescript
-  'use client'
-  import { useEffect } from 'react'
-  import { useRouter } from 'next/navigation'
-  import { supabase } from '@/lib/supabase'
-
-  export default function AuthCallback() {
-    const router = useRouter()
-
-    useEffect(() => {
-      const handleAuthCallback = async () => {
-        const { data, error } = await supabase.auth.getSession()
-        
-        if (error) {
-          console.error('Auth callback error:', error)
-          router.push('/login?error=auth_failed')
-          return
-        }
-
-        if (data.session) {
-          router.push('/')
-        } else {
-          router.push('/login')
-        }
-      }
-
-      handleAuthCallback()
-    }, [router])
-
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">로그인 처리 중...</p>
-        </div>
-      </div>
-    )
-  }
-  ```
-  
-  _요구사항: 3.1, 3.2_
-
-- [ ] 6. 사용자 프로필 관리 시스템
+궁금한 점이 있다면 언제든지 제 커밋 기록과 이 문서를 참고해주세요. 행운을 빕니다! 🚀
   
   **6.1 프로필 페이지 (src/app/profile/[userId]/page.tsx)**
   ```typescript

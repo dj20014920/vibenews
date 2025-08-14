@@ -20,7 +20,3 @@ verify_jwt = true
 
 [functions.enhanced-auth-emails]
 verify_jwt = false
-
-[functions.cron.trending-algorithm]
-schedule = "0 */3 * * *" # Every 3 hours
-timeout = 300 # 5 minutes

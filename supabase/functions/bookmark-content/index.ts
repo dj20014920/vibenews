@@ -1,20 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-const bookmarkSchema = z.object({
-  content_type: z.enum(["news_article", "community_post"]),
-  content_id: z.string().uuid(),
-  action: z.enum(["bookmark", "unbookmark"]),
-  folder_name: z.string().max(50).optional(),
-  notes: z.string().max(1000).optional(),
-  tags: z.array(z.string().max(25)).max(20).optional(),
-});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -39,8 +29,19 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    const body = await req.json();
-    const { content_type, content_id, action, folder_name, notes, tags } = bookmarkSchema.parse(body);
+    const { content_type, content_id, action, folder_name, notes, tags } = await req.json();
+
+    if (!content_type || !content_id || !action) {
+      throw new Error("Missing required fields: content_type, content_id, action");
+    }
+
+    if (!["bookmark", "unbookmark"].includes(action)) {
+      throw new Error("Action must be 'bookmark' or 'unbookmark'");
+    }
+
+    if (!["news_article", "community_post"].includes(content_type)) {
+      throw new Error("Content type must be 'news_article' or 'community_post'");
+    }
 
     const user_id = userData.user.id;
 
@@ -117,15 +118,11 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Error in bookmark-content function:", error);
-    const errorMessage = error instanceof z.ZodError
-      ? error.errors.map(e => e.message).join(', ')
-      : error.message;
-
     return new Response(JSON.stringify({ 
       success: false, 
-      error: errorMessage
+      error: error.message
     }), {
-      status: 400, // Bad Request for validation errors
+      status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
