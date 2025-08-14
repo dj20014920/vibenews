@@ -48,8 +48,10 @@ serve(async (req) => {
       throw new Error('Search query must be at least 2 characters');
     }
 
-    const searchTerm = query.trim().toLowerCase();
-    console.log(`Searching for: "${searchTerm}" (type: ${type}, sortBy: ${sortBy})`);
+    const searchTerm = query.trim();
+    // Format for websearch_to_tsquery: spaces are treated as AND
+    const ftsQuery = searchTerm.split(' ').filter(Boolean).join(' & ');
+    console.log(`Searching for: "${searchTerm}" (FTS Query: "${ftsQuery}", type: ${type}, sortBy: ${sortBy})`);
 
     let newsResults: any[] = [];
     let communityResults: any[] = [];
@@ -75,8 +77,11 @@ serve(async (req) => {
         `)
         .eq('is_hidden', false);
 
-      // Text search in title, summary, and content
-      newsQuery = newsQuery.or(`title.ilike.%${searchTerm}%,summary.ilike.%${searchTerm}%,content.ilike.%${searchTerm}%`);
+      // Full-text search
+      newsQuery = newsQuery.textSearch('fts', ftsQuery, {
+        type: 'websearch',
+        config: 'simple'
+      });
 
       // Tag filtering
       if (tags.length > 0) {
@@ -91,10 +96,9 @@ serve(async (req) => {
         case 'popularity':
           newsQuery = newsQuery.order('view_count', { ascending: false });
           break;
-        default:
-          // For relevance, we'll sort by creation date for now
-          // In a real app, you'd use full-text search ranking
-          newsQuery = newsQuery.order('created_at', { ascending: false });
+        default: // 'relevance'
+          // textSearch automatically sorts by relevance, so no explicit order is needed
+          break;
       }
 
       const { data: news, error: newsError } = await newsQuery
@@ -138,8 +142,11 @@ serve(async (req) => {
         `)
         .eq('is_hidden', false);
 
-      // Text search in title and content
-      communityQuery = communityQuery.or(`title.ilike.%${searchTerm}%,content.ilike.%${searchTerm}%`);
+      // Full-text search
+      communityQuery = communityQuery.textSearch('fts', ftsQuery, {
+        type: 'websearch',
+        config: 'simple'
+      });
 
       // Tag filtering
       if (tags.length > 0) {
@@ -154,8 +161,9 @@ serve(async (req) => {
         case 'popularity':
           communityQuery = communityQuery.order('like_count', { ascending: false });
           break;
-        default:
-          communityQuery = communityQuery.order('created_at', { ascending: false });
+        default: // 'relevance'
+          // textSearch automatically sorts by relevance
+          break;
       }
 
       const { data: posts, error: postsError } = await communityQuery
@@ -233,8 +241,14 @@ serve(async (req) => {
     // Combine and sort results
     let allResults = [...newsResults, ...communityResults, ...commentResults];
 
-    if (sortBy === 'relevance') {
-      allResults.sort((a, b) => b.relevance_score - a.relevance_score);
+    // The .textSearch() method already sorts by relevance.
+    // We only need to re-sort if the user chose a different sort order and we combined results.
+    if (type === 'all' && sortBy !== 'relevance') {
+      if (sortBy === 'date') {
+        allResults.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      } else if (sortBy === 'popularity') {
+        allResults.sort((a, b) => (b.like_count || 0) - (a.like_count || 0));
+      }
     }
 
     // Apply final limit if searching all types

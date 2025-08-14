@@ -106,15 +106,32 @@ serve(async (req) => {
       const validatedData = updatePostSchema.parse(data);
       const { post_id, ...updateData } = validatedData;
 
-      // Check if user owns the post
-      const { data: existingPost } = await supabaseClient
+      const GRACE_PERIOD_MINUTES = 5;
+
+      // Check if user owns the post and get necessary fields for validation
+      const { data: existingPost, error: postFetchError } = await supabaseClient
         .from("community_posts")
-        .select("author_id")
+        .select("author_id, created_at, comment_count")
         .eq("id", post_id)
         .single();
 
-      if (!existingPost || existingPost.author_id !== user_id) {
-        throw new Error("You can only update your own posts");
+      if (postFetchError) throw postFetchError;
+
+      if (!existingPost) {
+        return new Response(JSON.stringify({ success: false, error: "Post not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      if (existingPost.author_id !== user_id) {
+        return new Response(JSON.stringify({ success: false, error: "You can only update your own posts" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // Check if the post can be edited
+      const postCreatedAt = new Date(existingPost.created_at);
+      const now = new Date();
+      const minutesSinceCreation = (now.getTime() - postCreatedAt.getTime()) / (1000 * 60);
+
+      if (existingPost.comment_count > 0 && minutesSinceCreation > GRACE_PERIOD_MINUTES) {
+        throw new Error(`댓글이 달린 후 ${GRACE_PERIOD_MINUTES}분이 지난 게시글은 수정할 수 없습니다.`);
       }
 
       const finalUpdateData = { ...updateData, updated_at: new Date().toISOString() };
