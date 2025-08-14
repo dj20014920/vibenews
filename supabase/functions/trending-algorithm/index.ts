@@ -41,20 +41,41 @@ const processContentType = async (
   const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const scores: TrendingScore[] = [];
 
+  // --- N+1 Query Optimization ---
+  // 1. Get all recent likes and comments for the content type in bulk
+  const postIds = (posts || []).map(p => p.id);
+
+  const { data: recentLikesData } = await supabase
+    .from('likes')
+    .select(commentLinkColumn)
+    .in(commentLinkColumn, postIds)
+    .gte('created_at', twentyFourHoursAgo.toISOString());
+
+  const { data: recentCommentsData } = await supabase
+    .from('comments')
+    .select(commentLinkColumn)
+    .in(commentLinkColumn, postIds)
+    .gte('created_at', twentyFourHoursAgo.toISOString());
+
+  // 2. Process them into maps for O(1) lookup
+  const recentLikesMap = (recentLikesData || []).reduce((acc, like) => {
+    const id = like[commentLinkColumn];
+    if (id) acc[id] = (acc[id] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const recentCommentsMap = (recentCommentsData || []).reduce((acc, comment) => {
+    const id = comment[commentLinkColumn];
+    if (id) acc[id] = (acc[id] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  // --- End of Optimization ---
+
   for (const post of posts || []) {
-    // Get recent activity
-    const { count: recent_likes } = await supabase
-      .from('likes')
-      .select('*', { count: 'exact', head: true })
-      .eq(commentLinkColumn, post.id)
-      .gte('created_at', twentyFourHoursAgo.toISOString());
+    const recent_likes = recentLikesMap[post.id] || 0;
+    const recent_comments = recentCommentsMap[post.id] || 0;
 
-    const { count: recent_comments } = await supabase
-      .from('comments')
-      .select('*', { count: 'exact', head: true })
-      .eq(commentLinkColumn, post.id)
-      .gte('created_at', twentyFourHoursAgo.toISOString());
-
+    // This query for total comments is less critical but could also be optimized if needed
     const { count: total_comments } = await supabase
         .from("comments")
         .select("*", { count: "exact", head: true })
@@ -62,8 +83,8 @@ const processContentType = async (
 
     const hotScore = calculateHotScore({
       created_at: post[dateColumn] || post.created_at,
-      recent_likes: recent_likes || 0,
-      recent_comments: recent_comments || 0,
+      recent_likes: recent_likes,
+      recent_comments: recent_comments,
     });
 
     const trendingScore = calculateTrendingScore({

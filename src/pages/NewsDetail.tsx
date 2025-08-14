@@ -62,7 +62,6 @@ const NewsDetail = () => {
   }, [id]);
 
   const loadArticle = async () => {
-    if (!id) return;
     try {
       const { data, error } = await supabase
         .from('news_articles')
@@ -74,8 +73,11 @@ const NewsDetail = () => {
       if (error) throw error;
       if (data) {
         setArticle(data);
-        // Securely increment view count via RPC
-        await supabase.rpc('increment_view_count', { content_type: 'news_article', content_id: id });
+        // 조회수 증가
+        await supabase
+          .from('news_articles')
+          .update({ view_count: data.view_count + 1 })
+          .eq('id', id);
       }
     } catch (error) {
       console.error('Error loading article:', error);
@@ -115,26 +117,48 @@ const NewsDetail = () => {
 
   const handleLike = async () => {
     if (!requireAuth('like') || !article) return;
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // 이미 좋아요 했는지 확인
       const { data: existingLike } = await supabase
         .from('likes')
         .select('id')
         .eq('article_id', article.id)
         .eq('user_id', user.id)
-        .maybeSingle();
+        .single();
 
       if (existingLike) {
-        await supabase.from('likes').delete().match({ id: existingLike.id });
-        setArticle(a => a ? { ...a, like_count: a.like_count - 1 } : null);
-        toast({ title: "좋아요 취소" });
+        // 좋아요 취소
+        await supabase
+          .from('likes')
+          .delete()
+          .eq('article_id', article.id)
+          .eq('user_id', user.id);
+
+        toast({
+          title: "좋아요 취소",
+          description: "좋아요를 취소했습니다.",
+        });
       } else {
-        await supabase.from('likes').insert({ article_id: article.id, user_id: user.id });
-        setArticle(a => a ? { ...a, like_count: a.like_count + 1 } : null);
-        toast({ title: "좋아요!" });
+        // 좋아요 추가
+        await supabase
+          .from('likes')
+          .insert({
+            article_id: article.id,
+            user_id: user.id,
+          });
+
+        toast({
+          title: "좋아요!",
+          description: "좋아요를 눌렀습니다.",
+        });
       }
+
+      // 기사 다시 로드하여 좋아요 수 업데이트
+      loadArticle();
     } catch (error) {
       console.error('Error handling like:', error);
       toast({

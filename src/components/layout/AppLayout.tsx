@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Link } from "react-router-dom"
-import { User, LogOut, Settings, LayoutGrid } from "lucide-react"
+import { User, LogOut, Settings } from "lucide-react"
 import { FloatingDiscoveryMenu } from "./FloatingDiscoveryMenu"
 
 interface AppLayoutProps {
@@ -49,12 +49,6 @@ export function AppLayout({ children }: AppLayoutProps) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-56" align="end" forceMount>
-                      <DropdownMenuItem asChild>
-                        <Link to="/mypage">
-                          <LayoutGrid className="mr-2 h-4 w-4" />
-                          마이페이지
-                        </Link>
-                      </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link to="/profile">
                           <User className="mr-2 h-4 w-4" />

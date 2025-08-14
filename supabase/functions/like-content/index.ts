@@ -1,10 +1,17 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const likeSchema = z.object({
+  content_type: z.enum(["news_article", "community_post", "comment"]),
+  content_id: z.string().uuid(),
+  action: z.enum(["like", "unlike"]),
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -29,19 +36,8 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    const { content_type, content_id, action } = await req.json();
-
-    if (!content_type || !content_id || !action) {
-      throw new Error("Missing required fields: content_type, content_id, action");
-    }
-
-    if (!["like", "unlike"].includes(action)) {
-      throw new Error("Action must be 'like' or 'unlike'");
-    }
-
-    if (!["news_article", "community_post", "comment"].includes(content_type)) {
-      throw new Error("Invalid content_type");
-    }
+    const body = await req.json();
+    const { content_type, content_id, action } = likeSchema.parse(body);
 
     const user_id = userData.user.id;
 
@@ -158,11 +154,15 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Error in like-content function:", error);
+    const errorMessage = error instanceof z.ZodError
+      ? error.errors.map(e => e.message).join(', ')
+      : error.message;
+
     return new Response(JSON.stringify({ 
       success: false, 
-      error: error.message
+      error: errorMessage
     }), {
-      status: 500,
+      status: 400, // Bad Request for validation errors
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

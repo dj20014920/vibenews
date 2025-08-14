@@ -1,27 +1,14 @@
 import { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Heart, MessageCircle, Share2, Bookmark, Clock, Eye, Pin, Star, Trash2, Edit } from "lucide-react";
+import { ArrowLeft, Heart, MessageCircle, Share2, Bookmark, Clock, Eye, Pin, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ProtectedAction, GuestPrompt } from "@/components/auth/ProtectedAction";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-
 
 interface CommunityPost {
   id: string;
@@ -53,21 +40,16 @@ interface Comment {
   author_id?: string;
   anonymous_author_id?: string;
   is_anonymous: boolean;
-  is_deleted: boolean;
-  deleted_at?: string;
   like_count: number;
   parent_id?: string;
   author?: {
     nickname: string;
     avatar_url?: string;
   };
-  replies: { count: number }[];
 }
 
 const CommunityPost = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
-  const { user } = useAuth();
   const [post, setPost] = useState<CommunityPost | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
@@ -86,10 +68,10 @@ const CommunityPost = () => {
   const loadPost = async () => {
     try {
       const { data, error } = await supabase
-        .from('v_community_posts')
+        .from('community_posts')
         .select(`
           *,
-          author:users(nickname, avatar_url)
+          author:users!community_posts_author_id_fkey(nickname, avatar_url)
         `)
         .eq('id', id)
         .eq('is_hidden', false)
@@ -97,14 +79,17 @@ const CommunityPost = () => {
 
       if (error) throw error;
       if (data) {
+        // author가 제대로 조인되지 않은 경우 기본값 설정
         const postWithAuthor = {
           ...data,
-          author_id: data.author_id_visible, // Use the visible author_id from the view
-          author: data.author || { nickname: '익명', avatar_url: '' }
+          author: data.author || { nickname: data.anonymous_author_name || '익명', avatar_url: '' }
         };
         setPost(postWithAuthor);
-        // Securely increment view count via RPC
-        await supabase.rpc('increment_view_count', { content_type: 'community_post', content_id: id });
+        // 조회수 증가
+        await supabase
+          .from('community_posts')
+          .update({ view_count: data.view_count + 1 })
+          .eq('id', id);
       }
     } catch (error) {
       console.error('Error loading post:', error);
@@ -119,21 +104,20 @@ const CommunityPost = () => {
   const loadComments = async () => {
     try {
       const { data, error } = await supabase
-        .from('v_comments')
+        .from('comments')
         .select(`
           *,
-          author:users(nickname, avatar_url),
-          replies:comments(count)
+          author:users!comments_author_id_fkey(nickname, avatar_url)
         `)
         .eq('post_id', id)
         .eq('is_hidden', false)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
+      // author가 제대로 조인되지 않은 경우 기본값 설정
       const commentsWithAuthor = data?.map(comment => ({
         ...comment,
-        author_id: comment.author_id_visible, // Use the visible author_id from the view
-        author: comment.author || { nickname: '익명', avatar_url: '' }
+        author: comment.author || { nickname: comment.anonymous_author_name || '익명', avatar_url: '' }
       })) || [];
       setComments(commentsWithAuthor);
     } catch (error) {
@@ -150,22 +134,43 @@ const CommunityPost = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // 이미 좋아요 했는지 확인
       const { data: existingLike } = await supabase
         .from('likes')
         .select('id')
         .eq('post_id', post.id)
         .eq('user_id', user.id)
-        .maybeSingle();
+        .single();
 
       if (existingLike) {
-        await supabase.from('likes').delete().match({ id: existingLike.id });
-        setPost(p => p ? { ...p, like_count: p.like_count - 1 } : null);
-        toast({ title: "좋아요 취소" });
+        // 좋아요 취소
+        await supabase
+          .from('likes')
+          .delete()
+          .eq('post_id', post.id)
+          .eq('user_id', user.id);
+
+        toast({
+          title: "좋아요 취소",
+          description: "좋아요를 취소했습니다.",
+        });
       } else {
-        await supabase.from('likes').insert({ post_id: post.id, user_id: user.id });
-        setPost(p => p ? { ...p, like_count: p.like_count + 1 } : null);
-        toast({ title: "좋아요!" });
+        // 좋아요 추가
+        await supabase
+          .from('likes')
+          .insert({
+            post_id: post.id,
+            user_id: user.id,
+          });
+
+        toast({
+          title: "좋아요!",
+          description: "좋아요를 눌렀습니다.",
+        });
       }
+
+      // 게시글 다시 로드하여 좋아요 수 업데이트
+      loadPost();
     } catch (error) {
       console.error('Error handling like:', error);
       toast({
@@ -178,22 +183,45 @@ const CommunityPost = () => {
 
   const handleBookmark = async () => {
     if (!requireAuth('bookmark') || !post) return;
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      // 이미 북마크 했는지 확인
       const { data: existingBookmark } = await supabase
         .from('bookmarks')
         .select('id')
         .eq('post_id', post.id)
         .eq('user_id', user.id)
-        .maybeSingle();
+        .single();
 
       if (existingBookmark) {
-        await supabase.from('bookmarks').delete().match({ id: existingBookmark.id });
-        toast({ title: "북마크 취소" });
+        // 북마크 취소
+        await supabase
+          .from('bookmarks')
+          .delete()
+          .eq('post_id', post.id)
+          .eq('user_id', user.id);
+
+        toast({
+          title: "북마크 취소",
+          description: "북마크를 취소했습니다.",
+        });
       } else {
-        await supabase.from('bookmarks').insert({ post_id: post.id, user_id: user.id, tags: post.tags });
-        toast({ title: "북마크 완료" });
+        // 북마크 추가
+        await supabase
+          .from('bookmarks')
+          .insert({
+            post_id: post.id,
+            user_id: user.id,
+            tags: post.tags,
+          });
+
+        toast({
+          title: "북마크 완료",
+          description: "북마크에 저장했습니다.",
+        });
       }
     } catch (error) {
       console.error('Error handling bookmark:', error);
@@ -207,9 +235,11 @@ const CommunityPost = () => {
 
   const handleCommentSubmit = async () => {
     if (!requireAuth('comment') || !newComment.trim() || !post) return;
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
       await supabase
         .from('comments')
         .insert({
@@ -219,9 +249,20 @@ const CommunityPost = () => {
           anonymous_author_id: isAnonymous ? `익명_${user.id.slice(0, 8)}` : null,
           is_anonymous: isAnonymous,
         });
+
       setNewComment("");
-      loadComments(); // The trigger will update the count, so we just need to reload.
-      toast({ title: "댓글 작성 완료" });
+      loadComments();
+
+      // 댓글 수 업데이트
+      await supabase
+        .from('community_posts')
+        .update({ comment_count: post.comment_count + 1 })
+        .eq('id', post.id);
+
+      toast({
+        title: "댓글 작성 완료",
+        description: "댓글이 작성되었습니다.",
+      });
     } catch (error) {
       console.error('Error posting comment:', error);
       toast({
@@ -229,34 +270,6 @@ const CommunityPost = () => {
         description: "댓글 작성 중 오류가 발생했습니다.",
         variant: "destructive",
       });
-    }
-  };
-
-  const handleDeletePost = async () => {
-    if (!post) return;
-    try {
-      const { error } = await supabase.rpc('delete_post_and_comments', { post_id_in: post.id });
-      if (error) throw error;
-      toast({ title: "게시글 삭제 완료", description: "게시글과 관련 댓글이 모두 삭제되었습니다." });
-      navigate('/community');
-    } catch (error) {
-      console.error('Error deleting post:', error);
-      toast({ title: "삭제 실패", description: "게시글 삭제 중 오류가 발생했습니다.", variant: 'destructive' });
-    }
-  };
-
-  const handleDeleteComment = async (commentId: string) => {
-    try {
-      const { error } = await supabase
-        .from('comments')
-        .update({ is_deleted: true, deleted_at: new Date().toISOString() })
-        .eq('id', commentId);
-      if (error) throw error;
-      loadComments(); // Reload comments to show the "deleted" state
-      toast({ title: "댓글 삭제 완료" });
-    } catch (error) {
-      console.error('Error deleting comment:', error);
-      toast({ title: "삭제 실패", description: "댓글 삭제 중 오류가 발생했습니다.", variant: 'destructive' });
     }
   };
 
@@ -345,35 +358,7 @@ const CommunityPost = () => {
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold leading-tight">{post.title}</h1>
-            {user?.id === post.author_id && (
-              <div className="flex items-center space-x-1">
-                <Button variant="ghost" size="icon" disabled={post.comment_count > 0} title={post.comment_count > 0 ? "댓글이 달려 수정할 수 없습니다." : "수정"}>
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" title="삭제">
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>정말로 게시글을 삭제하시겠습니까?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        이 작업은 되돌릴 수 없습니다. 게시글과 모든 댓글이 영구적으로 삭제됩니다.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>취소</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDeletePost}>삭제</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            )}
-          </div>
+          <h1 className="text-2xl font-bold leading-tight">{post.title}</h1>
           
           {post.tags.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -434,7 +419,7 @@ const CommunityPost = () => {
                   onClick={() => document.getElementById('comments')?.scrollIntoView({ behavior: 'smooth' })}
                 >
                   <MessageCircle className="h-4 w-4 mr-2" />
-                  댓글 {comments.filter(c => !c.is_deleted).length}
+                  댓글 {comments.length}
                 </Button>
               </div>
 
@@ -471,13 +456,15 @@ const CommunityPost = () => {
 
       {/* 댓글 섹션 */}
       <div id="comments" className="space-y-6">
-        <h2 className="text-2xl font-bold">댓글 {comments.filter(c => !c.is_deleted).length}개</h2>
+        <h2 className="text-2xl font-bold">댓글 {comments.length}개</h2>
 
+        {/* 비회원 유도 메시지 */}
         <GuestPrompt 
           message="댓글을 작성하려면 로그인하세요"
           actionText="로그인하기"
         />
 
+        {/* 댓글 작성 */}
         <ProtectedAction>
           <Card>
             <CardContent className="p-4 space-y-4">
@@ -508,15 +495,9 @@ const CommunityPost = () => {
           </Card>
         </ProtectedAction>
 
+        {/* 댓글 목록 */}
         <div className="space-y-4">
           {comments.map((comment) => (
-            comment.is_deleted ? (
-              <Card key={comment.id} className="bg-muted/50">
-                <CardContent className="p-4">
-                  <p className="text-sm text-muted-foreground italic">삭제된 댓글입니다.</p>
-                </CardContent>
-              </Card>
-            ) : (
             <Card key={comment.id}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-3">
@@ -533,32 +514,6 @@ const CommunityPost = () => {
                       </p>
                     </div>
                   </div>
-                   {user?.id === comment.author_id && (
-                    <div className="flex items-center space-x-1">
-                      <Button variant="ghost" size="icon" disabled={comment.replies[0]?.count > 0} title={comment.replies[0]?.count > 0 ? "답글이 달려 수정할 수 없습니다." : "수정"}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" title="삭제">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>정말로 댓글을 삭제하시겠습니까?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              이 작업은 되돌릴 수 없습니다. 댓글 내용이 "삭제된 댓글입니다."로 변경됩니다.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>취소</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteComment(comment.id)}>삭제</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  )}
                 </div>
                 <p className="text-sm leading-relaxed mb-3">{comment.content}</p>
                 <div className="flex items-center space-x-2">
@@ -572,7 +527,6 @@ const CommunityPost = () => {
                 </div>
               </CardContent>
             </Card>
-            )
           ))}
         </div>
 

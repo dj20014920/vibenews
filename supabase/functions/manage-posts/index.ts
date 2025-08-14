@@ -9,7 +9,7 @@ const corsHeaders = {
 
 // Define schemas for validation
 const createPostSchema = z.object({
-  title: z.string().min(3, "제목은 3자 이상이어야 합니다.").max(200, "제목은 200자를 초과할 수 없습니다."),
+  title: z.string().min(1, "제목을 입력해주세요.").max(200, "제목은 200자를 초과할 수 없습니다."),
   content: z.string().min(10, "내용은 10자 이상이어야 합니다."),
   tags: z.array(z.string().max(25, "각 태그는 25자를 초과할 수 없습니다.")).max(10, "태그는 최대 10개까지 추가할 수 있습니다.").optional().default([]),
   tools_used: z.array(z.string().max(30, "도구 이름은 30자를 초과할 수 없습니다.")).max(10, "도구는 최대 10개까지 추가할 수 있습니다.").optional().default([]),
@@ -19,7 +19,7 @@ const createPostSchema = z.object({
 
 const updatePostSchema = z.object({
   post_id: z.string().uuid("유효한 post_id가 아닙니다."),
-  title: z.string().min(3, "제목은 3자 이상이어야 합니다.").max(200, "제목은 200자를 초과할 수 없습니다.").optional(),
+  title: z.string().min(1, "제목을 입력해주세요.").max(200, "제목은 200자를 초과할 수 없습니다.").optional(),
   content: z.string().min(10, "내용은 10자 이상이어야 합니다.").optional(),
   tags: z.array(z.string().max(25, "각 태그는 25자를 초과할 수 없습니다.")).max(10, "태그는 최대 10개까지 추가할 수 있습니다.").optional(),
   tools_used: z.array(z.string().max(30, "도구 이름은 30자를 초과할 수 없습니다.")).max(10, "도구는 최대 10개까지 추가할 수 있습니다.").optional(),
