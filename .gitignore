@@ -51,8 +51,6 @@ Thumbs.db
 *.tmp
 *.temp
 
-# Korean filename (대화본.md) - contains sensitive conversation logs
-대화본.md
 
 # Kiro IDE settings (개발 환경 설정)
 .kiro/settings/
