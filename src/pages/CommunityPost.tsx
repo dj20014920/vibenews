@@ -84,12 +84,18 @@ const CommunityPost = () => {
           ...data,
           author: data.author || { nickname: data.anonymous_author_name || '익명', avatar_url: '' }
         };
-        setPost(postWithAuthor);
-        // 조회수 증가
-        await supabase
-          .from('community_posts')
-          .update({ view_count: data.view_count + 1 })
-          .eq('id', id);
+        let updatedViewCount = data.view_count;
+        const storageKey = `viewed_post_${id}`;
+        if (id && !sessionStorage.getItem(storageKey)) {
+          const { data: trackRes, error: trackErr } = await supabase.functions.invoke('track-views', {
+            body: { content_type: 'community_post', content_id: id }
+          });
+          if (!trackErr && (trackRes as any)?.view_count !== undefined) {
+            updatedViewCount = (trackRes as any).view_count as number;
+            sessionStorage.setItem(storageKey, '1');
+          }
+        }
+        setPost({ ...postWithAuthor, view_count: updatedViewCount });
       }
     } catch (error) {
       console.error('Error loading post:', error);

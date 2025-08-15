@@ -37,6 +37,7 @@ supabase/.git/
 
 # Database
 *.db
+*.sql
 *.sqlite
 
 # OS generated files

@@ -197,25 +197,7 @@ export function InfiniteNewsList({ searchQuery, selectedTags, sortBy = 'latest' 
     }
   };
 
-  const updateViewCount = async (articleId: string) => {
-    try {
-      // 클라이언트에서 조회수 업데이트 - 실제로는 서버 함수를 사용하는 것이 더 안전
-      const { data: currentArticle } = await supabase
-        .from('news_articles')
-        .select('view_count')
-        .eq('id', articleId)
-        .single();
-
-      if (currentArticle) {
-        await supabase
-          .from('news_articles')
-          .update({ view_count: currentArticle.view_count + 1 })
-          .eq('id', articleId);
-      }
-    } catch (error) {
-      console.error('Error updating view count:', error);
-    }
-  };
+  // 조회수는 상세 페이지에서만 증가 처리하여 중복/경합 방지
 
   const handleBookmark = async (articleId: string) => {
     if (!requireAuth('bookmark')) return;
@@ -278,7 +260,6 @@ export function InfiniteNewsList({ searchQuery, selectedTags, sortBy = 'latest' 
                   <CardTitle className="text-lg leading-tight hover:text-primary cursor-pointer">
                     <a 
                       href={`/news/${article.id}`}
-                      onClick={() => updateViewCount(article.id)}
                     >
                       {article.title}
                     </a>

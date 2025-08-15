@@ -72,12 +72,18 @@ const NewsDetail = () => {
 
       if (error) throw error;
       if (data) {
-        setArticle(data);
-        // 조회수 증가
-        await supabase
-          .from('news_articles')
-          .update({ view_count: data.view_count + 1 })
-          .eq('id', id);
+        let updatedViewCount = data.view_count;
+        const storageKey = `viewed_news_${id}`;
+        if (id && !sessionStorage.getItem(storageKey)) {
+          const { data: trackRes, error: trackErr } = await supabase.functions.invoke('track-views', {
+            body: { content_type: 'news_article', content_id: id }
+          });
+          if (!trackErr && (trackRes as any)?.view_count !== undefined) {
+            updatedViewCount = (trackRes as any).view_count as number;
+            sessionStorage.setItem(storageKey, '1');
+          }
+        }
+        setArticle({ ...data, view_count: updatedViewCount });
       }
     } catch (error) {
       console.error('Error loading article:', error);

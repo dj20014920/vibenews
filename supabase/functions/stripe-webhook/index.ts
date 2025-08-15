@@ -7,9 +7,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// APIKEYTODO: Replace with actual keys
-const STRIPE_SECRET_KEY = "sk_test_51234567890abcdef"; // APIKEYTODO
-const STRIPE_WEBHOOK_SECRET = "whsec_1234567890abcdef"; // APIKEYTODO
+const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
+const STRIPE_WEBHOOK_SECRET = Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? "";
+
+if (!STRIPE_SECRET_KEY || !STRIPE_WEBHOOK_SECRET) {
+  console.error('[STRIPE-WEBHOOK] Missing STRIPE_SECRET_KEY or STRIPE_WEBHOOK_SECRET');
+}
 
 serve(async (req) => {
   console.log(`[STRIPE-WEBHOOK] Webhook received`);

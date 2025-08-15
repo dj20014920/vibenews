@@ -6,10 +6,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// APIKEYTODO: Replace with actual PayPal credentials
-const PAYPAL_CLIENT_ID = "AYour_PayPal_Client_ID_Here"; // APIKEYTODO
-const PAYPAL_CLIENT_SECRET = "EYour_PayPal_Client_Secret_Here"; // APIKEYTODO
-const PAYPAL_BASE_URL = "https://api.sandbox.paypal.com"; // APIKEYTODO: Change to production
+const PAYPAL_CLIENT_ID = Deno.env.get("PAYPAL_CLIENT_ID") ?? "";
+const PAYPAL_CLIENT_SECRET = Deno.env.get("PAYPAL_CLIENT_SECRET") ?? "";
+const PAYPAL_BASE_URL = Deno.env.get("PAYPAL_BASE_URL") ?? "https://api.sandbox.paypal.com";
+const PAYPAL_PLAN_ID = Deno.env.get("PAYPAL_PLAN_ID") ?? "";
+
+if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET) {
+  console.error('[PAYPAL-CHECKOUT] Missing PAYPAL_CLIENT_ID or PAYPAL_CLIENT_SECRET');
+}
 
 serve(async (req) => {
   console.log(`[PAYPAL-CHECKOUT] ${req.method} request received`);
@@ -74,7 +78,7 @@ serve(async (req) => {
           "Prefer": "return=representation",
         },
         body: JSON.stringify({
-          plan_id: "P-5ML4271244454362WXNWU5NQ", // APIKEYTODO: Create actual plan in PayPal
+          plan_id: PAYPAL_PLAN_ID,
           start_time: new Date(Date.now() + 60000).toISOString(), // Start in 1 minute
           quantity: "1",
           shipping_amount: {
@@ -89,7 +93,7 @@ serve(async (req) => {
             email_address: user.email,
           },
           application_context: {
-            brand_name: "Your App Name", // APIKEYTODO: Replace with actual app name
+            brand_name: Deno.env.get("PAYPAL_BRAND_NAME") ?? "VibeNews",
             locale: "en-US",
             shipping_preference: "NO_SHIPPING",
             user_action: "SUBSCRIBE_NOW",
