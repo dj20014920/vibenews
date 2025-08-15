@@ -28,16 +28,34 @@ export default function Tools() {
   useEffect(() => {
     const fetchTools = async () => {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('managed_tools')
-        .select('*')
-        .order('name', { ascending: true })
-
-      if (error) {
-        console.error("Error fetching tools:", error)
-      } else {
-        setTools(data as ManagedTool[])
-      }
+      // For now, use static data since managed_tools table doesn't exist
+      const mockTools: ManagedTool[] = [
+        {
+          id: '1',
+          name: 'Visual Studio Code',
+          description: '가장 인기 있는 코드 에디터',
+          url: 'https://code.visualstudio.com',
+          category: 'IDE',
+          created_at: new Date().toISOString()
+        },
+        {
+          id: '2',
+          name: 'Git',
+          description: '분산 버전 관리 시스템',
+          url: 'https://git-scm.com',
+          category: 'CLI',
+          created_at: new Date().toISOString()
+        },
+        {
+          id: '3',
+          name: 'GitHub',
+          description: '코드 호스팅 및 협업 플랫폼',
+          url: 'https://github.com',
+          category: 'SaaS',
+          created_at: new Date().toISOString()
+        }
+      ]
+      setTools(mockTools)
       setLoading(false)
     }
     fetchTools()

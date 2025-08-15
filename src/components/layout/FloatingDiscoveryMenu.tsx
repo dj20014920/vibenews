@@ -40,26 +40,34 @@ export const FloatingDiscoveryMenu = () => {
     const fetchHotContent = async () => {
       try {
         setLoading(true)
-        // Fetch news
+        // Fetch news directly from news_articles
         const { data: newsData } = await supabase
-          .from('trending_scores')
-          .select('content_id, content_type, hot_score, post:news_articles(title)')
-          .eq('content_type', 'news_article')
-          .order('hot_score', { ascending: false })
+          .from('news_articles')
+          .select('id, title, view_count')
+          .order('view_count', { ascending: false })
           .limit(5)
 
-        const newsItems = newsData?.map(item => ({ ...item, title: item.post.title })) || []
+        const newsItems = newsData?.map(item => ({ 
+          content_id: item.id, 
+          content_type: 'news_article', 
+          title: item.title, 
+          hot_score: item.view_count 
+        })) || []
         setHotNews(newsItems as HotContent[])
 
-        // Fetch community
+        // Fetch community directly from community_posts
         const { data: communityData } = await supabase
-          .from('trending_scores')
-          .select('content_id, content_type, hot_score, post:community_posts(title)')
-          .eq('content_type', 'community_post')
-          .order('hot_score', { ascending: false })
+          .from('community_posts')
+          .select('id, title, view_count')
+          .order('view_count', { ascending: false })
           .limit(5)
 
-        const communityItems = communityData?.map(item => ({ ...item, title: item.post.title })) || []
+        const communityItems = communityData?.map(item => ({ 
+          content_id: item.id, 
+          content_type: 'community_post', 
+          title: item.title, 
+          hot_score: item.view_count 
+        })) || []
         setHotCommunity(communityItems as HotContent[])
 
       } catch (error) {
