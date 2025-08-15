@@ -62,12 +62,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('*')
+        .select('role')
         .eq('id', userId)
         .single();
 
       if (error) throw error;
-      setRole('user'); // Default role since role column doesn't exist
+      setRole(data?.role || 'user');
 
       // 이제 사용자 설정을 로드합니다.
       await loadUserPreferences(userId);

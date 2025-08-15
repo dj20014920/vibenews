@@ -20,3 +20,6 @@ verify_jwt = true
 
 [functions.enhanced-auth-emails]
 verify_jwt = false
+
+[functions.manage-users]
+verify_jwt = true
