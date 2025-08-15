@@ -6,8 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// APIKEYTODO: Replace with actual KakaoPay admin key
-const KAKAO_ADMIN_KEY = "KakaoAK 1234567890abcdef"; // APIKEYTODO
+// Required environment variables:
+// - KAKAO_ADMIN_KEY: Your KakaoPay Admin Key (e.g., "KakaoAK 1234567890abcdef")
+// - KAKAO_CID: Your KakaoPay CID. Use "TC0ONETIME" for testing.
 
 serve(async (req) => {
   console.log(`[KAKAOPAY-CHECKOUT] ${req.method} request received`);
@@ -17,6 +18,13 @@ serve(async (req) => {
   }
 
   try {
+    const KAKAO_ADMIN_KEY = Deno.env.get("KAKAO_ADMIN_KEY");
+    const KAKAO_CID = Deno.env.get("KAKAO_CID") ?? "TC0ONETIME";
+
+    if (!KAKAO_ADMIN_KEY) {
+      throw new Error("KAKAO_ADMIN_KEY environment variable is not set.");
+    }
+
     const { action, ...data } = await req.json();
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -46,16 +54,18 @@ serve(async (req) => {
 
       if (!planData) throw new Error("No active plan found");
 
+      const partner_order_id = `VIBENEWS-${user.id.substring(0, 8)}-${Date.now()}`;
+
       // KakaoPay ready request
       const readyResponse = await fetch("https://kapi.kakao.com/v1/payment/ready", {
         method: "POST",
         headers: {
           "Authorization": KAKAO_ADMIN_KEY,
-          "Content-Type": "application/x-www-form-urlencoded",
+          "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
         },
         body: new URLSearchParams({
-          cid: "TC0ONETIME", // Test CID (APIKEYTODO: Replace with actual CID)
-          partner_order_id: `order_${user.id}_${Date.now()}`,
+          cid: KAKAO_CID,
+          partner_order_id,
           partner_user_id: user.id,
           item_name: planData.name,
           quantity: "1",
@@ -72,8 +82,27 @@ serve(async (req) => {
       console.log(`[KAKAOPAY-CHECKOUT] Ready response:`, readyData);
 
       if (readyData.tid) {
+        // Store the tid and partner_order_id for the approval step
+        const { error: insertError } = await supabaseClient
+          .from("payment_transactions")
+          .insert({
+            id: readyData.tid,
+            provider: 'kakaopay',
+            user_id: user.id,
+            partner_order_id: partner_order_id,
+            status: 'pending',
+            amount: planData.amount,
+            plan_id: planData.id
+          });
+
+        if (insertError) {
+          console.error("Error saving transaction:", insertError);
+          throw new Error("Failed to save payment transaction.");
+        }
+
         return new Response(JSON.stringify({
           tid: readyData.tid,
+          partner_order_id: partner_order_id, // Return to client
           next_redirect_pc_url: readyData.next_redirect_pc_url,
           next_redirect_mobile_url: readyData.next_redirect_mobile_url,
         }), {
@@ -81,23 +110,40 @@ serve(async (req) => {
           status: 200,
         });
       } else {
-        throw new Error("KakaoPay ready failed");
+        throw new Error(`KakaoPay ready failed: ${readyData.msg}`);
       }
 
     } else if (action === "approve") {
       const { tid, pg_token } = data;
+      if (!tid || !pg_token) {
+        throw new Error("tid and pg_token are required for approval.");
+      }
+
+      // Retrieve the transaction details
+      const { data: transactionData, error: transactionError } = await supabaseClient
+        .from("payment_transactions")
+        .select("partner_order_id")
+        .eq("id", tid)
+        .eq("user_id", user.id)
+        .single();
       
+      if (transactionError || !transactionData) {
+        throw new Error("Invalid or expired transaction ID.");
+      }
+
+      const { partner_order_id } = transactionData;
+
       // KakaoPay approve request
       const approveResponse = await fetch("https://kapi.kakao.com/v1/payment/approve", {
         method: "POST",
         headers: {
           "Authorization": KAKAO_ADMIN_KEY,
-          "Content-Type": "application/x-www-form-urlencoded",
+          "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
         },
         body: new URLSearchParams({
-          cid: "TC0ONETIME", // APIKEYTODO: Replace with actual CID
+          cid: KAKAO_CID,
           tid,
-          partner_order_id: `order_${user.id}`,
+          partner_order_id,
           partner_user_id: user.id,
           pg_token,
         }),
@@ -114,6 +160,8 @@ serve(async (req) => {
           .eq("is_active", true)
           .single();
 
+        const planDurationDays = planData?.duration_days || 30;
+
         // Create subscription record
         await supabaseClient.from("subscriptions").insert({
           user_id: user.id,
@@ -122,11 +170,17 @@ serve(async (req) => {
           provider_customer_id: user.id,
           plan_id: planData?.id,
           status: "active",
-          amount: planData?.amount || 4900,
-          currency: planData?.currency || "KRW",
+          amount: approveData.amount.total,
+          currency: approveData.amount.currency,
           current_period_start: new Date().toISOString(),
-          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+          current_period_end: new Date(Date.now() + planDurationDays * 24 * 60 * 60 * 1000).toISOString(),
         });
+
+        // Update transaction status
+        await supabaseClient
+          .from("payment_transactions")
+          .update({ status: 'completed', provider_payment_id: approveData.aid })
+          .eq('id', tid);
 
         return new Response(JSON.stringify({
           success: true,
@@ -137,7 +191,7 @@ serve(async (req) => {
           status: 200,
         });
       } else {
-        throw new Error("KakaoPay approval failed");
+        throw new Error(`KakaoPay approval failed: ${approveData.msg}`);
       }
     }
 

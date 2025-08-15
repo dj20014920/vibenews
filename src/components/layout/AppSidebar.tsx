@@ -1,4 +1,4 @@
-import { Home, Newspaper, Users, Search, Bookmark, Settings, Code2, GraduationCap, TrendingUp, Shield, Crown } from "lucide-react"
+import { Home, Newspaper, Users, Search, Bookmark, Settings, Code2, GraduationCap, TrendingUp, Shield, Crown, Store } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 
@@ -24,6 +24,7 @@ export function AppSidebar() {
     { title: t('sidebar.news'), url: "/news", icon: Newspaper },
     { title: t('sidebar.community'), url: "/community", icon: Users },
     { title: t('sidebar.search'), url: "/search", icon: Search },
+    { title: t('sidebar.store'), url: "/store", icon: Store },
   ]
 
   const toolsItems = [

@@ -7,8 +7,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// APIKEYTODO: Replace with actual Stripe secret key
-const STRIPE_SECRET_KEY = "sk_test_51234567890abcdef"; // APIKEYTODO
+// Required environment variables:
+// - STRIPE_SECRET_KEY: Your Stripe Secret Key (e.g., "sk_test_...")
 
 serve(async (req) => {
   console.log(`[STRIPE-CHECKOUT] ${req.method} request received`);
@@ -18,6 +18,11 @@ serve(async (req) => {
   }
 
   try {
+    const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!STRIPE_SECRET_KEY) {
+      throw new Error("STRIPE_SECRET_KEY environment variable is not set.");
+    }
+
     // Create Supabase client with service role key for secure operations
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -44,7 +49,7 @@ serve(async (req) => {
     // Get plan information
     const { data: planData } = await supabaseClient
       .from("plans")
-      .select("*")
+      .select("*, interval:plan_interval") // Assume 'plan_interval' column exists
       .eq("is_active", true)
       .single();
 
@@ -77,7 +82,9 @@ serve(async (req) => {
             description: planData.description 
           },
           unit_amount: planData.amount,
-          recurring: { interval: "month" },
+          recurring: {
+            interval: (planData.interval === 'year' || planData.interval === 'month') ? planData.interval : "month"
+          },
         },
         quantity: 1,
       }],
