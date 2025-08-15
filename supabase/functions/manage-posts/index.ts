@@ -108,42 +108,43 @@ serve(async (req) => {
 
       const GRACE_PERIOD_MINUTES = 5;
 
-      // Check if user owns the post and get necessary fields for validation
-      const { data: existingPost, error: postFetchError } = await supabaseClient
+      // First, verify ownership to provide a clear 403 Forbidden error if needed.
+      const { data: ownerCheck, error: ownerError } = await supabaseClient
         .from("community_posts")
-        .select("author_id, created_at, comment_count")
+        .select("author_id")
         .eq("id", post_id)
         .single();
 
-      if (postFetchError) throw postFetchError;
-
-      if (!existingPost) {
+      if (ownerError) throw ownerError;
+      if (!ownerCheck) {
         return new Response(JSON.stringify({ success: false, error: "Post not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-
-      if (existingPost.author_id !== user_id) {
+      if (ownerCheck.author_id !== user_id) {
         return new Response(JSON.stringify({ success: false, error: "You can only update your own posts" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      // Check if the post can be edited
-      const postCreatedAt = new Date(existingPost.created_at);
-      const now = new Date();
-      const minutesSinceCreation = (now.getTime() - postCreatedAt.getTime()) / (1000 * 60);
-
-      if (existingPost.comment_count > 0 && minutesSinceCreation > GRACE_PERIOD_MINUTES) {
-        throw new Error(`댓글이 달린 후 ${GRACE_PERIOD_MINUTES}분이 지난 게시글은 수정할 수 없습니다.`);
-      }
-
+      // **ATOMIC UPDATE LOGIC**
+      // The conditions for editing are now in the WHERE clause of the UPDATE statement itself,
+      // preventing a race condition between checking and updating.
+      const gracePeriodCutoff = new Date(Date.now() - GRACE_PERIOD_MINUTES * 60 * 1000).toISOString();
       const finalUpdateData = { ...updateData, updated_at: new Date().toISOString() };
 
       const { data: updatedPost, error: updateError } = await supabaseClient
         .from("community_posts")
         .update(finalUpdateData)
         .eq("id", post_id)
+        .eq("author_id", user_id) // Re-verify ownership within the atomic operation
+        .or(`comment_count.eq.0,created_at.gte.${gracePeriodCutoff}`) // The core logic: editable if no comments OR within grace period.
         .select()
         .single();
 
       if (updateError) throw updateError;
+
+      // If updatedPost is null and there's no error, it means the WHERE clause didn't match
+      // (i.e., the post is not editable anymore).
+      if (!updatedPost) {
+        throw new Error(`댓글이 달렸거나 수정 유예 기간(${GRACE_PERIOD_MINUTES}분)이 지나 수정할 수 없습니다.`);
+      }
 
       return new Response(JSON.stringify({
         success: true,

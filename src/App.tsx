@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import AdminRoute from "@/components/auth/AdminRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Index from "./pages/Index";
 import News from "./pages/News";
@@ -22,6 +24,7 @@ import Tools from "./pages/Tools";
 import Learning from "./pages/Learning";
 import Trends from "./pages/Trends";
 import Admin from "./pages/Admin";
+import AdminUsers from "./pages/AdminUsers";
 import Subscription from "./pages/Subscription";
 import Store from "./pages/Store";
 import NotFound from "./pages/NotFound";
@@ -43,20 +46,21 @@ const App = () => (
                   <Route path="/news" element={<News />} />
                   <Route path="/news/:id" element={<NewsDetail />} />
                   <Route path="/community" element={<Community />} />
-                  <Route path="/community/write" element={<CommunityWrite />} />
+                  <Route path="/community/write" element={<ProtectedRoute><CommunityWrite /></ProtectedRoute>} />
                   <Route path="/community/post/:id" element={<CommunityPost />} />
                   <Route path="/search" element={<Search />} />
-                  <Route path="/bookmarks" element={<Bookmarks />} />
-                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/bookmarks" element={<ProtectedRoute><Bookmarks /></ProtectedRoute>} />
+                  <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                   <Route path="/auth" element={<Auth />} />
-                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                   <Route path="/profile/:userId" element={<Profile />} />
                   <Route path="/tools" element={<Tools />} />
                   <Route path="/learning" element={<Learning />} />
                   <Route path="/trends" element={<Trends />} />
-                  <Route path="/subscription" element={<Subscription />} />
-                  <Route path="/store" element={<Store />} />
-                  <Route path="/admin" element={<Admin />} />
+                  <Route path="/subscription" element={<ProtectedRoute><Subscription /></ProtectedRoute>} />
+                  <Route path="/store" element={<ProtectedRoute><Store /></ProtectedRoute>} />
+                  <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+                  <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>

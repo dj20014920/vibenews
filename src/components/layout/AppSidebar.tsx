@@ -1,4 +1,4 @@
-import { Home, Newspaper, Users, Search, Bookmark, Settings, Code2, GraduationCap, TrendingUp, Shield, Crown, Store } from "lucide-react"
+import { Home, Newspaper, Users, Search, Bookmark, Settings, Code2, GraduationCap, TrendingUp, Shield, Crown, Store, BookText } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 
@@ -40,7 +40,8 @@ export function AppSidebar() {
   ]
 
   const adminItems = [
-    { title: "관리자", url: "/admin", icon: Shield },
+    { title: "사용자 관리", url: "/admin/users", icon: Users },
+    { title: "기술 용어 관리", url: "/admin", icon: BookText },
   ]
 
   const isActive = (path: string) => currentPath === path

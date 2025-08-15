@@ -15,6 +15,7 @@ interface UserPreferences {
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  role: string | null;
   preferences: UserPreferences | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -43,6 +44,7 @@ const cleanupAuthState = () => {
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -54,6 +56,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     console.log("AuthProvider useEffect running, user:", user, "loading:", loading);
   }, [user, loading]);
+
+  // 사용자 프로필 및 역할 로드
+  const loadUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+      setRole(data?.role || 'user');
+
+      // 이제 사용자 설정을 로드합니다.
+      await loadUserPreferences(userId);
+
+    } catch (error) {
+      console.error('Error loading user profile and role:', error);
+      setRole('user'); // Fallback to basic user role on error
+    }
+  };
 
   // 사용자 설정 로드
   const loadUserPreferences = async (userId: string) => {
@@ -89,13 +112,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
-        setUser(session?.user ?? null);
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
         
-        if (session?.user) {
-          // 사용자 설정 로드를 지연시켜 데드락 방지
-          setTimeout(() => {
-            loadUserPreferences(session.user.id);
-          }, 0);
+        if (currentUser) {
+          await loadUserProfile(currentUser.id);
           
           // 프로필 생성 (필요시)
           if (event === 'SIGNED_IN') {
@@ -123,6 +144,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         } else {
           setPreferences(null);
+          setRole(null);
         }
         
         setLoading(false);
@@ -135,9 +157,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        setTimeout(() => {
-          loadUserPreferences(session.user.id);
-        }, 0);
+        loadUserProfile(session.user.id);
       }
       
       setLoading(false);
@@ -201,13 +221,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
       }
 
-      // 세션이 생성되었거나 사용자 객체가 존재하면 전체 페이지 새로고침으로 상태 정합성 보장
-      if (data.session || data.user) {
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 0);
-      }
-
+      // The component calling signIn is now responsible for navigation after the promise resolves.
+      // This prevents a hard page reload and maintains SPA state.
       return { error: null };
     } catch (error) {
       const err = error as Error;
@@ -250,29 +265,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           name: error.name
         });
         
-        // 친화적인 에러 메시지
-        let message = "회원가입에 실패했습니다.";
-        let detailedError = error.message;
-        
-        if (error.message.includes("User already registered")) {
-          message = "이미 등록된 이메일입니다. 로그인을 시도해보세요.";
-        } else if (error.message.includes("Password should be")) {
-          message = "비밀번호는 6자 이상이어야 합니다.";
-        } else if (error.message.includes("Invalid email")) {
-          message = "올바르지 않은 이메일 형식입니다.";
-        } else if (error.message.includes("Signup is disabled")) {
-          message = "현재 회원가입이 비활성화되어 있습니다.";
-        } else if (error.message.includes("Database error")) {
-          message = "데이터베이스 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
-        } else if (error.message.includes("Network error")) {
-          message = "네트워크 연결을 확인해주세요.";
-        } else if (error.message.includes("rate limit")) {
-          message = "너무 많은 요청이 발생했습니다. 잠시 후 다시 시도해주세요.";
+        // **UX Improvement**: Map raw Supabase errors to user-friendly, translated messages.
+        // The raw error is no longer exposed to the user.
+        // TODO: Move these strings to i18n translation files for full internationalization.
+        let message = "알 수 없는 오류로 회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.";
+        const rawMessage = error.message.toLowerCase();
+
+        if (rawMessage.includes("user already registered")) {
+          message = "이미 가입된 이메일입니다. 로그인을 시도해보세요.";
+        } else if (rawMessage.includes("password should be")) {
+          message = "보안을 위해 비밀번호는 6자 이상이어야 합니다.";
+        } else if (rawMessage.includes("invalid email")) {
+          message = "올바른 이메일 형식이 아닙니다. 다시 확인해주세요.";
+        } else if (rawMessage.includes("signup is disabled")) {
+          message = "현재 새로운 사용자 가입이 비활성화되어 있습니다. 관리자에게 문의하세요.";
+        } else if (rawMessage.includes("network error") || rawMessage.includes("failed to fetch")) {
+          message = "네트워크 연결을 확인하고 다시 시도해주세요.";
+        } else if (rawMessage.includes("rate limit") || rawMessage.includes("too many requests")) {
+          message = "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.";
         }
         
         toast({
           title: "회원가입 실패",
-          description: `${message}\n상세 오류: ${detailedError}`,
+          description: message,
           variant: "destructive",
         });
         return { error };
@@ -330,10 +345,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         description: "안전하게 로그아웃되었습니다.",
       });
 
-      // 완전한 세션 정리 보장을 위해 인증 페이지로 리다이렉트
-      setTimeout(() => {
-        window.location.href = '/auth';
-      }, 0);
+      // The component calling signOut is now responsible for navigation.
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -401,6 +413,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const value = {
     user,
     session,
+    role,
     preferences,
     loading,
     signIn,

@@ -3,9 +3,10 @@
 -- Please run this script manually against your Supabase database in the SQL Editor.
 -- Apply the scripts in the order they appear here.
 
+-- =============================================================================
 -- Migration 1: 20250814042400_add_hot_score.sql
 -- Adds the hot_score column to the trending_scores table for the improved trending algorithm.
--- -----------------------------------------------------------------------------
+-- =============================================================================
 
 ALTER TABLE public.trending_scores
 ADD COLUMN IF NOT EXISTS hot_score REAL DEFAULT 0;
@@ -15,9 +16,10 @@ COMMENT ON COLUMN public.trending_scores.hot_score IS 'Score based on recent act
 CREATE INDEX IF NOT EXISTS idx_trending_scores_hot_score ON public.trending_scores (hot_score DESC);
 
 
+-- =============================================================================
 -- Migration 2: 20250814225020_create_gamification_store.sql
 -- Creates the tables for the gamification point store and seeds it with initial items.
--- -----------------------------------------------------------------------------
+-- =============================================================================
 
 -- Create a table for items available in the store
 CREATE TABLE store_items (
@@ -32,7 +34,6 @@ CREATE TABLE store_items (
     display_order INT DEFAULT 0
 );
 
--- Add comments to the table and columns
 COMMENT ON TABLE store_items IS 'Items available for purchase with points in the gamification store.';
 COMMENT ON COLUMN store_items.price IS 'The cost of the item in user points.';
 COMMENT ON COLUMN store_items.item_type IS 'A category for the item, used to determine how to apply its effect.';
@@ -49,7 +50,6 @@ CREATE TABLE user_inventory (
     UNIQUE (user_id, item_id) -- A user can only own one of each item type
 );
 
--- Add comments to the table and columns
 COMMENT ON TABLE user_inventory IS 'Tracks items purchased by users from the store.';
 COMMENT ON COLUMN user_inventory.is_active IS 'Indicates if the user has this item effect currently active.';
 
@@ -58,23 +58,9 @@ COMMENT ON COLUMN user_inventory.is_active IS 'Indicates if the user has this it
 ALTER TABLE store_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_inventory ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for store_items
-CREATE POLICY "Allow all users to view active store items"
-ON store_items
-FOR SELECT
-USING (is_active = true);
-
--- RLS Policies for user_inventory
-CREATE POLICY "Allow users to view their own inventory"
-ON user_inventory
-FOR SELECT
-USING (auth.uid() = user_id);
-
-CREATE POLICY "Allow users to update their own inventory items (activate/deactivate)"
-ON user_inventory
-FOR UPDATE
-USING (auth.uid() = user_id)
-WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow all users to view active store items" ON store_items FOR SELECT USING (is_active = true);
+CREATE POLICY "Allow users to view their own inventory" ON user_inventory FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Allow users to update their own inventory items (activate/deactivate)" ON user_inventory FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 
 -- Create some default items in the store
@@ -85,9 +71,10 @@ INSERT INTO store_items (name, description, price, item_type, metadata) VALUES
 ('100 Club Badge', 'Awarded to users who have written over 100 posts.', 0, 'PROFILE_BADGE', '{"badge_name": "100 Club", "badge_icon": "Feather"}');
 
 
+-- =============================================================================
 -- Migration 3: 20250814231200_create_purchase_item_function.sql
 -- Creates the PostgreSQL function to handle item purchases in a single, atomic transaction.
--- -----------------------------------------------------------------------------
+-- =============================================================================
 
 CREATE OR REPLACE FUNCTION purchase_item_tx(p_user_id UUID, p_item_id UUID)
 RETURNS JSON
@@ -115,8 +102,6 @@ BEGIN
   -- 3. Get user's current points and lock the row for this transaction
   SELECT points INTO user_points FROM public.user_levels WHERE user_id = p_user_id FOR UPDATE;
   IF NOT FOUND THEN
-    -- If user has no record in user_levels, they have 0 points.
-    -- This case should ideally not happen if a user_levels row is created on signup.
     user_points := 0;
   END IF;
 
@@ -136,7 +121,47 @@ BEGIN
   RETURN json_build_object('success', true, 'new_points', user_points - item_price);
 EXCEPTION
   WHEN OTHERS THEN
-    -- Any error will cause the transaction to rollback automatically.
     RETURN json_build_object('success', false, 'error', SQLERRM);
 END;
+$$;
+
+
+-- =============================================================================
+-- Migration 4: 20250814235900_add_user_roles.sql
+-- Adds a 'role' column to the users table and sets up appropriate RLS policies.
+-- =============================================================================
+
+ALTER TABLE public.users
+ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user' NOT NULL;
+
+ALTER TABLE public.users
+ADD CONSTRAINT users_role_check CHECK (role IN ('admin', 'user', 'moderator'));
+
+COMMENT ON COLUMN public.users.role IS 'User role for access control (e.g., admin, user, moderator)';
+
+DROP POLICY IF EXISTS "Allow users to view their own profile data only" ON public.users;
+DROP POLICY IF EXISTS "Public user profiles are viewable by everyone" ON public.users;
+DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON public.users;
+
+CREATE POLICY "Public user profiles are viewable by everyone" ON public.users FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.users;
+CREATE POLICY "Users can update their own profile" ON public.users FOR UPDATE USING (auth.uid() = id);
+
+
+-- =============================================================================
+-- Migration 5: 20250815000100_create_is_admin_function.sql
+-- Creates a helper function to check if a user is an admin.
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION is_admin(p_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.users
+    WHERE id = p_user_id AND role = 'admin'
+  );
 $$;

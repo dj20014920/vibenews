@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Navigate, useSearchParams } from "react-router-dom";
+import { Navigate, useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,7 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [searchParams] = useSearchParams();
   const { user, signIn, signUp, signInWithProvider } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   // 이메일 인증 관련 파라미터 확인
@@ -35,6 +36,9 @@ const Auth = () => {
     setIsLoading(true);
     try {
       const result = await signIn(email, password);
+      if (!result.error) {
+        navigate("/"); // Navigate to home on successful sign-in
+      }
       return result;
     } finally {
       setIsLoading(false);
