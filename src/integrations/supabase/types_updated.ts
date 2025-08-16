@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "12.2.12 (cd3cf9e)"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       audit_logs: {
@@ -212,50 +187,6 @@ export type Database = {
           },
         ]
       }
-      comments: {
-        Row: {
-          author_id: string
-          content: string
-          content_id: string
-          content_type: string
-          created_at: string
-          id: string
-          is_deleted: boolean
-          parent_id: string | null
-          updated_at: string
-        }
-        Insert: {
-          author_id: string
-          content: string
-          content_id: string
-          content_type: string
-          created_at?: string
-          id?: string
-          is_deleted?: boolean
-          parent_id?: string | null
-          updated_at?: string
-        }
-        Update: {
-          author_id?: string
-          content?: string
-          content_id?: string
-          content_type?: string
-          created_at?: string
-          id?: string
-          is_deleted?: boolean
-          parent_id?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "comments_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "comments"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       community_posts: {
         Row: {
           author_id: string
@@ -400,46 +331,18 @@ export type Database = {
         }
         Relationships: []
       }
-      likes: {
-        Row: {
-          content_id: string
-          content_type: string
-          created_at: string
-          id: string
-          user_id: string
-        }
-        Insert: {
-          content_id: string
-          content_type: string
-          created_at?: string
-          id?: string
-          user_id: string
-        }
-        Update: {
-          content_id?: string
-          content_type?: string
-          created_at?: string
-          id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       news_articles: {
         Row: {
           author: string | null
           author_id: string
-          comment_count: number
           content: string
           content_simplified: boolean | null
           created_at: string
           id: string
-          is_featured: boolean
           is_hidden: boolean | null
-          like_count: number
           published_at: string | null
           source_url: string | null
           summary: string | null
-          tags: Json | null
           thumbnail: string | null
           title: string
           updated_at: string
@@ -448,18 +351,14 @@ export type Database = {
         Insert: {
           author?: string | null
           author_id: string
-          comment_count?: number
           content: string
           content_simplified?: boolean | null
           created_at?: string
           id?: string
-          is_featured?: boolean
           is_hidden?: boolean | null
-          like_count?: number
           published_at?: string | null
           source_url?: string | null
           summary?: string | null
-          tags?: Json | null
           thumbnail?: string | null
           title: string
           updated_at?: string
@@ -468,18 +367,14 @@ export type Database = {
         Update: {
           author?: string | null
           author_id?: string
-          comment_count?: number
           content?: string
           content_simplified?: boolean | null
           created_at?: string
           id?: string
-          is_featured?: boolean
           is_hidden?: boolean | null
-          like_count?: number
           published_at?: string | null
           source_url?: string | null
           summary?: string | null
-          tags?: Json | null
           thumbnail?: string | null
           title?: string
           updated_at?: string
@@ -501,45 +396,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      reports: {
-        Row: {
-          content_id: string
-          content_type: string
-          created_at: string
-          description: string | null
-          id: string
-          reason: string
-          reporter_id: string
-          reviewed_at: string | null
-          reviewer_id: string | null
-          status: string | null
-        }
-        Insert: {
-          content_id: string
-          content_type: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          reason: string
-          reporter_id: string
-          reviewed_at?: string | null
-          reviewer_id?: string | null
-          status?: string | null
-        }
-        Update: {
-          content_id?: string
-          content_type?: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          reason?: string
-          reporter_id?: string
-          reviewed_at?: string | null
-          reviewer_id?: string | null
-          status?: string | null
-        }
-        Relationships: []
       }
       trending_scores: {
         Row: {
@@ -783,9 +639,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

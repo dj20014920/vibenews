@@ -154,40 +154,55 @@ export function InfiniteNewsList({ searchQuery, selectedTags, sortBy = 'latest' 
         return;
       }
 
-      // likes 테이블이 없을 수 있으므로 임시로 비활성화하고 대체 로직 사용
-      // 실제로는 좋아요 Edge Function을 사용하거나 마이그레이션 적용 후 활성화
-      toast({
-        title: "알림",
-        description: "좋아요 기능이 일시적으로 비활성화되었습니다.",
-      });
+      // 현재 좋아요 상태 확인
+      const { data: existingLike } = await supabase
+        .from('likes')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('content_id', articleId)
+        .eq('content_type', 'news')
+        .single();
 
-      // // 원본 코드 (마이그레이션 적용 후 사용)
-      // const { data: existingLike } = await supabase
-      //   .from('likes')
-      //   .select('*')
-      //   .eq('user_id', user.id)
-      //   .eq('article_id', articleId)
-      //   .maybeSingle();
+      if (existingLike) {
+        // 좋아요 취소
+        await supabase
+          .from('likes')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('content_id', articleId)
+          .eq('content_type', 'news');
 
-      // if (existingLike) {
-      //   await supabase
-      //     .from('likes')
-      //     .delete()
-      //     .eq('user_id', user.id)
-      //     .eq('article_id', articleId);
-      // } else {
-      //   await supabase
-      //     .from('likes')
-      //     .insert({ user_id: user.id, article_id: articleId });
-      // }
+        // 로컬 상태 업데이트
+        setArticles(prev => prev.map(article => 
+          article.id === articleId 
+            ? { ...article, like_count: (article.like_count || 0) - 1 }
+            : article
+        ));
 
-      // // UI 업데이트
-      // setArticles(prev => prev.map(article => 
-      //   article.id === articleId 
-      //     ? { ...article, like_count: existingLike ? (article.like_count || 0) - 1 : (article.like_count || 0) + 1 }
-      //     : article
-      // ));
+        toast({
+          title: "좋아요 취소됨",
+        });
+      } else {
+        // 좋아요 추가
+        await supabase
+          .from('likes')
+          .insert({
+            user_id: user.id,
+            content_id: articleId,
+            content_type: 'news'
+          });
 
+        // 로컬 상태 업데이트
+        setArticles(prev => prev.map(article => 
+          article.id === articleId 
+            ? { ...article, like_count: (article.like_count || 0) + 1 }
+            : article
+        ));
+
+        toast({
+          title: "좋아요!",
+        });
+      }
     } catch (error) {
       console.error('Error handling like:', error);
       toast({

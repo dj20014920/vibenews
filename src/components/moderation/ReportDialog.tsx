@@ -86,55 +86,28 @@ export const ReportDialog: React.FC<ReportDialogProps> = ({
     try {
       setSubmitting(true);
 
-      // reports 테이블이 아직 생성되지 않아서 임시로 비활성화
-      // 마이그레이션 적용 후 활성화 예정
+      // reports 테이블에 신고 데이터 삽입
+      const reportData = {
+        reporter_id: user!.id,
+        content_id: targetType === 'user' ? targetUserId : targetId,
+        content_type: targetType === 'article' ? 'news' : targetType,
+        reason,
+        description: details.trim() || null
+      };
+
+      const { error } = await supabase
+        .from('reports')
+        .insert(reportData);
+
+      if (error) {
+        throw error;
+      }
+
       toast({
-        title: "알림",
-        description: "신고 기능이 일시적으로 비활성화되었습니다. 마이그레이션 적용 후 사용 가능합니다.",
+        title: "신고 완료",
+        description: "신고가 성공적으로 접수되었습니다. 검토 후 적절한 조치를 취하겠습니다.",
       });
 
-      // const reportData: any = {
-      //   reporter_id: user!.id,
-      //   reason,
-      //   report_type: targetType,
-      //   report_details: {
-      //     reason,
-      //     details: details.trim(),
-      //     target_type: targetType,
-      //     timestamp: new Date().toISOString()
-      //   }
-      // };
-
-      // // 신고 대상에 따라 필드 설정
-      // switch (targetType) {
-      //   case 'post':
-      //     reportData.post_id = targetId;
-      //     break;
-      //   case 'article':
-      //     reportData.article_id = targetId;
-      //     break;
-      //   case 'comment':
-      //     reportData.comment_id = targetId;
-      //     break;
-      //   case 'user':
-      //     reportData.reported_user_id = targetUserId;
-      //     break;
-      // }
-
-      // const { error } = await supabase
-      //   .from('reports')
-      //   .insert(reportData);
-
-      // if (error) throw error;
-
-      // toast({
-      //   title: "신고가 접수되었습니다",
-      //   description: "관리자가 검토 후 적절한 조치를 취할 예정입니다.",
-      // });
-
-      setOpen(false);
-      setReason('');
-      setDetails('');
     } catch (error) {
       console.error('Error submitting report:', error);
       toast({
