@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+const sb = supabase as any;
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
@@ -72,7 +73,7 @@ export const NestedComments: React.FC<NestedCommentsProps> = ({
       setLoading(true);
       
       // 댓글과 작성자 정보를 함께 조회
-      const { data: commentsData, error } = await supabase
+      const { data: commentsData, error } = await sb
         .from('comments')
         .select(`
           *,
@@ -87,7 +88,7 @@ export const NestedComments: React.FC<NestedCommentsProps> = ({
       // 좋아요 상태 확인 (로그인된 사용자만)
       let likesData: any[] = [];
       if (user && commentsData?.length) {
-        const { data } = await supabase
+        const { data } = await sb
           .from('likes')
           .select('comment_id')
           .eq('user_id', user.id)
@@ -152,7 +153,7 @@ export const NestedComments: React.FC<NestedCommentsProps> = ({
         ...(postId ? { post_id: postId } : { article_id: articleId })
       };
 
-      const { error } = await supabase
+      const { error } = await sb
         .from('comments')
         .insert(commentData);
 
@@ -187,14 +188,14 @@ export const NestedComments: React.FC<NestedCommentsProps> = ({
     try {
       if (isLiked) {
         // 좋아요 취소
-        await supabase
+        await sb
           .from('likes')
           .delete()
           .eq('comment_id', commentId)
           .eq('user_id', user!.id);
       } else {
         // 좋아요 추가
-        await supabase
+        await sb
           .from('likes')
           .insert({
             comment_id: commentId,
@@ -224,7 +225,7 @@ export const NestedComments: React.FC<NestedCommentsProps> = ({
     if (!requireAuth('report')) return;
 
     try {
-      await supabase
+      await sb
         .from('reports')
         .insert({
           comment_id: commentId,

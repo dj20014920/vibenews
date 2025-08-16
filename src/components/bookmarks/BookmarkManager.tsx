@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+const sb = supabase as any;
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -108,7 +109,7 @@ export const BookmarkManager = () => {
   const fetchFolders = async () => {
     try {
       // 폴더별 북마크 수를 계산하기 위한 쿼리
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from('bookmarks')
         .select('folder_name')
         .eq('user_id', user?.id);
@@ -167,7 +168,7 @@ export const BookmarkManager = () => {
   const fetchBookmarks = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from('bookmarks')
         .select(`
           *,
@@ -233,7 +234,7 @@ export const BookmarkManager = () => {
 
   const moveToFolder = async (bookmarkId: string, folderName: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await sb
         .from('bookmarks')
         .update({ folder_name: folderName })
         .eq('id', bookmarkId);
@@ -259,7 +260,7 @@ export const BookmarkManager = () => {
 
   const deleteBookmark = async (bookmarkId: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await sb
         .from('bookmarks')
         .delete()
         .eq('id', bookmarkId);
@@ -285,7 +286,7 @@ export const BookmarkManager = () => {
 
   const updateTags = async (bookmarkId: string, newTags: string[]) => {
     try {
-      const { error } = await supabase
+      const { error } = await sb
         .from('bookmarks')
         .update({ tags: newTags })
         .eq('id', bookmarkId);

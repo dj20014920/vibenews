@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Copy, Code, Share2, Heart, Eye, Download, Play } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+const sb = supabase as any;
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -94,7 +95,7 @@ export function CodeSnippetShare({ onSnippetCreated }: CodeSnippetShareProps) {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from('code_snippets')
         .insert({
           title: formData.title.trim(),

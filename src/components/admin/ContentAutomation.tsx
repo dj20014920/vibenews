@@ -15,7 +15,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-
+const sb = supabase as any;
 interface AutomationStatus {
   qualityEvaluation: boolean;
   contentSimplification: boolean;
@@ -46,13 +46,13 @@ export const ContentAutomation = () => {
       console.log('Starting content quality evaluation...');
       
       // 최근 평가되지 않은 콘텐츠 가져오기
-      const { data: articles } = await supabase
+      const { data: articles } = await sb
         .from('news_articles')
         .select('id, title, content, source_url')
         .is('is_hidden', null)
         .limit(10);
 
-      const { data: posts } = await supabase
+      const { data: posts } = await sb
         .from('community_posts')
         .select('id, title, content')
         .is('is_hidden', null)
@@ -117,14 +117,14 @@ export const ContentAutomation = () => {
       console.log('Starting content simplification...');
       
       // 단순화되지 않은 콘텐츠 가져오기
-      const { data: articles } = await supabase
+      const { data: articles } = await sb
         .from('news_articles')
         .select('id, title, content, summary')
         .is('content_simplified', null)
         .eq('is_hidden', false)
         .limit(5);
 
-      const { data: posts } = await supabase
+      const { data: posts } = await sb
         .from('community_posts')
         .select('id, title, content')
         .is('content_simplified', null)
