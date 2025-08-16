@@ -8,20 +8,14 @@ import { useInView } from 'react-intersection-observer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
+import type { Tables } from '@/integrations/supabase/types';
 
-interface NewsArticle {
-  id: string;
-  title: string;
-  summary: string;
-  source_url: string;
-  thumbnail?: string;
-  tags: string[];
-  author?: string;
-  published_at: string;
-  like_count: number;
-  view_count: number;
-  is_featured: boolean;
-}
+// 생성된 타입 사용
+type NewsArticle = Tables<'news_articles'> & {
+  tags?: string[];
+  like_count?: number;
+  is_featured?: boolean;
+};
 
 interface InfiniteNewsListProps {
   searchQuery?: string;
@@ -61,15 +55,15 @@ export function InfiniteNewsList({ searchQuery, selectedTags, sortBy = 'latest' 
         query = query.or(`title.ilike.%${searchQuery}%, summary.ilike.%${searchQuery}%`);
       }
 
-      // 태그 필터링
-      if (selectedTags && selectedTags.length > 0) {
-        query = query.overlaps('tags', selectedTags);
-      }
+      // 태그 필터링 - 임시로 비활성화 (DB에 tags 컬럼이 없을 수 있음)
+      // if (selectedTags && selectedTags.length > 0) {
+      //   query = query.overlaps('tags', selectedTags);
+      // }
 
       // 정렬
       switch (sortBy) {
         case 'popular':
-          query = query.order('like_count', { ascending: false });
+          query = query.order('view_count', { ascending: false }); // like_count 대신 view_count 사용
           break;
         case 'trending':
           query = query.order('view_count', { ascending: false });
@@ -160,32 +154,39 @@ export function InfiniteNewsList({ searchQuery, selectedTags, sortBy = 'latest' 
         return;
       }
 
-      // 좋아요 토글 로직
-      const { data: existingLike } = await supabase
-        .from('likes')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('article_id', articleId)
-        .maybeSingle();
+      // likes 테이블이 없을 수 있으므로 임시로 비활성화하고 대체 로직 사용
+      // 실제로는 좋아요 Edge Function을 사용하거나 마이그레이션 적용 후 활성화
+      toast({
+        title: "알림",
+        description: "좋아요 기능이 일시적으로 비활성화되었습니다.",
+      });
 
-      if (existingLike) {
-        await supabase
-          .from('likes')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('article_id', articleId);
-      } else {
-        await supabase
-          .from('likes')
-          .insert({ user_id: user.id, article_id: articleId });
-      }
+      // // 원본 코드 (마이그레이션 적용 후 사용)
+      // const { data: existingLike } = await supabase
+      //   .from('likes')
+      //   .select('*')
+      //   .eq('user_id', user.id)
+      //   .eq('article_id', articleId)
+      //   .maybeSingle();
 
-      // UI 업데이트
-      setArticles(prev => prev.map(article => 
-        article.id === articleId 
-          ? { ...article, like_count: existingLike ? article.like_count - 1 : article.like_count + 1 }
-          : article
-      ));
+      // if (existingLike) {
+      //   await supabase
+      //     .from('likes')
+      //     .delete()
+      //     .eq('user_id', user.id)
+      //     .eq('article_id', articleId);
+      // } else {
+      //   await supabase
+      //     .from('likes')
+      //     .insert({ user_id: user.id, article_id: articleId });
+      // }
+
+      // // UI 업데이트
+      // setArticles(prev => prev.map(article => 
+      //   article.id === articleId 
+      //     ? { ...article, like_count: existingLike ? (article.like_count || 0) - 1 : (article.like_count || 0) + 1 }
+      //     : article
+      // ));
 
     } catch (error) {
       console.error('Error handling like:', error);
@@ -286,7 +287,7 @@ export function InfiniteNewsList({ searchQuery, selectedTags, sortBy = 'latest' 
               </p>
               
               {/* 태그 */}
-              {article.tags.length > 0 && (
+              {article.tags && article.tags.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-4">
                   {article.tags.slice(0, 3).map((tag) => (
                     <Badge key={tag} variant="outline" className="text-xs">
@@ -314,7 +315,7 @@ export function InfiniteNewsList({ searchQuery, selectedTags, sortBy = 'latest' 
                     className="flex items-center gap-1 hover:text-red-500 transition-colors"
                   >
                     <Heart className="h-4 w-4" />
-                    <span>{article.like_count}</span>
+                    <span>{article.like_count || 0}</span>
                   </button>
                   
                   <div className="flex items-center gap-1">
@@ -331,9 +332,9 @@ export function InfiniteNewsList({ searchQuery, selectedTags, sortBy = 'latest' 
                   >
                     <Bookmark className="h-4 w-4" />
                   </button>
-                  <span>{new Date(article.published_at).toLocaleDateString()}</span>
+                  <span>{new Date(article.published_at || article.created_at).toLocaleDateString()}</span>
                   <a
-                    href={article.source_url}
+                    href={article.source_url || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 hover:text-primary transition-colors"

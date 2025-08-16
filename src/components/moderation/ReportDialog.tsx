@@ -86,44 +86,51 @@ export const ReportDialog: React.FC<ReportDialogProps> = ({
     try {
       setSubmitting(true);
 
-      const reportData: any = {
-        reporter_id: user!.id,
-        reason,
-        report_type: targetType,
-        report_details: {
-          reason,
-          details: details.trim(),
-          target_type: targetType,
-          timestamp: new Date().toISOString()
-        }
-      };
-
-      // 신고 대상에 따라 필드 설정
-      switch (targetType) {
-        case 'post':
-          reportData.post_id = targetId;
-          break;
-        case 'article':
-          reportData.article_id = targetId;
-          break;
-        case 'comment':
-          reportData.comment_id = targetId;
-          break;
-        case 'user':
-          reportData.reported_user_id = targetUserId;
-          break;
-      }
-
-      const { error } = await supabase
-        .from('reports')
-        .insert(reportData);
-
-      if (error) throw error;
-
+      // reports 테이블이 아직 생성되지 않아서 임시로 비활성화
+      // 마이그레이션 적용 후 활성화 예정
       toast({
-        title: "신고가 접수되었습니다",
-        description: "관리자가 검토 후 적절한 조치를 취할 예정입니다.",
+        title: "알림",
+        description: "신고 기능이 일시적으로 비활성화되었습니다. 마이그레이션 적용 후 사용 가능합니다.",
       });
+
+      // const reportData: any = {
+      //   reporter_id: user!.id,
+      //   reason,
+      //   report_type: targetType,
+      //   report_details: {
+      //     reason,
+      //     details: details.trim(),
+      //     target_type: targetType,
+      //     timestamp: new Date().toISOString()
+      //   }
+      // };
+
+      // // 신고 대상에 따라 필드 설정
+      // switch (targetType) {
+      //   case 'post':
+      //     reportData.post_id = targetId;
+      //     break;
+      //   case 'article':
+      //     reportData.article_id = targetId;
+      //     break;
+      //   case 'comment':
+      //     reportData.comment_id = targetId;
+      //     break;
+      //   case 'user':
+      //     reportData.reported_user_id = targetUserId;
+      //     break;
+      // }
+
+      // const { error } = await supabase
+      //   .from('reports')
+      //   .insert(reportData);
+
+      // if (error) throw error;
+
+      // toast({
+      //   title: "신고가 접수되었습니다",
+      //   description: "관리자가 검토 후 적절한 조치를 취할 예정입니다.",
+      // });
 
       setOpen(false);
       setReason('');

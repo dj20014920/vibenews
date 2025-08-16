@@ -80,12 +80,121 @@ export type Database = {
         }
         Relationships: []
       }
+      bookmarks: {
+        Row: {
+          article_id: string | null
+          created_at: string
+          folder_name: string
+          id: string
+          notes: string | null
+          post_id: string | null
+          tags: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          article_id?: string | null
+          created_at?: string
+          folder_name?: string
+          id?: string
+          notes?: string | null
+          post_id?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          article_id?: string | null
+          created_at?: string
+          folder_name?: string
+          id?: string
+          notes?: string | null
+          post_id?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookmarks_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "news_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookmarks_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "community_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      code_snippets: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          fork_from: string | null
+          id: string
+          is_public: boolean
+          language: string
+          like_count: number
+          tags: string[] | null
+          title: string
+          updated_at: string
+          user_id: string
+          view_count: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          fork_from?: string | null
+          id?: string
+          is_public?: boolean
+          language?: string
+          like_count?: number
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          user_id: string
+          view_count?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          fork_from?: string | null
+          id?: string
+          is_public?: boolean
+          language?: string
+          like_count?: number
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "code_snippets_fork_from_fkey"
+            columns: ["fork_from"]
+            isOneToOne: false
+            referencedRelation: "code_snippets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       community_posts: {
         Row: {
           author_id: string
           content: string
+          content_simplified: boolean | null
           created_at: string
           id: string
+          is_hidden: boolean | null
           title: string
           updated_at: string
           view_count: number
@@ -93,8 +202,10 @@ export type Database = {
         Insert: {
           author_id: string
           content: string
+          content_simplified?: boolean | null
           created_at?: string
           id?: string
+          is_hidden?: boolean | null
           title: string
           updated_at?: string
           view_count?: number
@@ -102,8 +213,10 @@ export type Database = {
         Update: {
           author_id?: string
           content?: string
+          content_simplified?: boolean | null
           created_at?: string
           id?: string
+          is_hidden?: boolean | null
           title?: string
           updated_at?: string
           view_count?: number
@@ -220,28 +333,49 @@ export type Database = {
       }
       news_articles: {
         Row: {
+          author: string | null
           author_id: string
           content: string
+          content_simplified: boolean | null
           created_at: string
           id: string
+          is_hidden: boolean | null
+          published_at: string | null
+          source_url: string | null
+          summary: string | null
+          thumbnail: string | null
           title: string
           updated_at: string
           view_count: number
         }
         Insert: {
+          author?: string | null
           author_id: string
           content: string
+          content_simplified?: boolean | null
           created_at?: string
           id?: string
+          is_hidden?: boolean | null
+          published_at?: string | null
+          source_url?: string | null
+          summary?: string | null
+          thumbnail?: string | null
           title: string
           updated_at?: string
           view_count?: number
         }
         Update: {
+          author?: string | null
           author_id?: string
           content?: string
+          content_simplified?: boolean | null
           created_at?: string
           id?: string
+          is_hidden?: boolean | null
+          published_at?: string | null
+          source_url?: string | null
+          summary?: string | null
+          thumbnail?: string | null
           title?: string
           updated_at?: string
           view_count?: number
@@ -367,6 +501,14 @@ export type Database = {
       }
       is_admin: {
         Args: { p_user_id?: string }
+        Returns: boolean
+      }
+      log_security_event: {
+        Args: { event_type: string; metadata?: Json; target_user_id?: string }
+        Returns: undefined
+      }
+      verify_admin_action: {
+        Args: { action_description: string }
         Returns: boolean
       }
     }
