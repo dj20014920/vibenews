@@ -195,6 +195,14 @@ export type Database = {
           created_at: string
           id: string
           is_hidden: boolean | null
+          is_anonymous: boolean
+          is_featured: boolean
+          is_pinned: boolean
+          tags: string[]
+          tools_used: string[]
+          like_count: number
+          comment_count: number
+          anonymous_author_name: string | null
           title: string
           updated_at: string
           view_count: number
@@ -206,6 +214,14 @@ export type Database = {
           created_at?: string
           id?: string
           is_hidden?: boolean | null
+          is_anonymous?: boolean
+          is_featured?: boolean
+          is_pinned?: boolean
+          tags?: string[]
+          tools_used?: string[]
+          like_count?: number
+          comment_count?: number
+          anonymous_author_name?: string | null
           title: string
           updated_at?: string
           view_count?: number
@@ -217,6 +233,14 @@ export type Database = {
           created_at?: string
           id?: string
           is_hidden?: boolean | null
+          is_anonymous?: boolean
+          is_featured?: boolean
+          is_pinned?: boolean
+          tags?: string[]
+          tools_used?: string[]
+          like_count?: number
+          comment_count?: number
+          anonymous_author_name?: string | null
           title?: string
           updated_at?: string
           view_count?: number
@@ -454,6 +478,9 @@ export type Database = {
           created_at: string
           id: string
           is_deleted: boolean
+          is_anonymous: boolean
+          like_count: number
+          anonymous_author_name: string | null
           parent_id: string | null
           updated_at: string
         }
@@ -465,6 +492,9 @@ export type Database = {
           created_at?: string
           id?: string
           is_deleted?: boolean
+          is_anonymous?: boolean
+          like_count?: number
+          anonymous_author_name?: string | null
           parent_id?: string | null
           updated_at?: string
         }
@@ -476,6 +506,9 @@ export type Database = {
           created_at?: string
           id?: string
           is_deleted?: boolean
+          is_anonymous?: boolean
+          like_count?: number
+          anonymous_author_name?: string | null
           parent_id?: string | null
           updated_at?: string
         }
@@ -833,6 +866,7 @@ export type Database = {
           description: string
           price_monthly: number
           price_yearly: number
+          currency: string
           features: string[]
           is_active: boolean
           created_at: string
@@ -844,6 +878,7 @@ export type Database = {
           description: string
           price_monthly: number
           price_yearly: number
+          currency: string
           features: string[]
           is_active?: boolean
           created_at?: string
@@ -855,6 +890,7 @@ export type Database = {
           description?: string
           price_monthly?: number
           price_yearly?: number
+          currency?: string
           features?: string[]
           is_active?: boolean
           created_at?: string
@@ -868,6 +904,10 @@ export type Database = {
           user_id: string
           plan_id: string
           status: string
+          payment_provider: string
+          start_date: string
+          end_date: string
+          auto_renew: boolean
           current_period_start: string
           current_period_end: string
           created_at: string
@@ -878,6 +918,10 @@ export type Database = {
           user_id: string
           plan_id: string
           status: string
+          payment_provider: string
+          start_date: string
+          end_date: string
+          auto_renew?: boolean
           current_period_start: string
           current_period_end: string
           created_at?: string
@@ -888,6 +932,10 @@ export type Database = {
           user_id?: string
           plan_id?: string
           status?: string
+          payment_provider?: string
+          start_date?: string
+          end_date?: string
+          auto_renew?: boolean
           current_period_start?: string
           current_period_end?: string
           created_at?: string
@@ -942,6 +990,8 @@ export type Database = {
           badge_name: string
           badge_description: string
           badge_icon: string
+          badge_color: string
+          badge_category: string
           earned_at: string
           points: number
           category: string
@@ -953,6 +1003,8 @@ export type Database = {
           badge_name: string
           badge_description: string
           badge_icon: string
+          badge_color: string
+          badge_category: string
           earned_at?: string
           points: number
           category: string
@@ -964,6 +1016,8 @@ export type Database = {
           badge_name?: string
           badge_description?: string
           badge_icon?: string
+          badge_color?: string
+          badge_category?: string
           earned_at?: string
           points?: number
           category?: string
@@ -975,6 +1029,7 @@ export type Database = {
           id: string
           user_id: string
           level: number
+          points: number
           experience_points: number
           badges: string[]
           achievements: string[]
@@ -985,6 +1040,7 @@ export type Database = {
           id?: string
           user_id: string
           level?: number
+          points?: number
           experience_points?: number
           badges?: string[]
           achievements?: string[]
@@ -995,6 +1051,7 @@ export type Database = {
           id?: string
           user_id?: string
           level?: number
+          points?: number
           experience_points?: number
           badges?: string[]
           achievements?: string[]
@@ -1011,6 +1068,7 @@ export type Database = {
           id: string
           nickname: string | null
           profile_image_url: string | null
+          avatar_url: string | null
           role: string
           updated_at: string
         }
@@ -1021,6 +1079,7 @@ export type Database = {
           id: string
           nickname?: string | null
           profile_image_url?: string | null
+          avatar_url?: string | null
           role?: string
           updated_at?: string
         }
@@ -1031,6 +1090,7 @@ export type Database = {
           id?: string
           nickname?: string | null
           profile_image_url?: string | null
+          avatar_url?: string | null
           role?: string
           updated_at?: string
         }
