@@ -335,14 +335,18 @@ export type Database = {
         Row: {
           author: string | null
           author_id: string
+          comment_count: number
           content: string
           content_simplified: boolean | null
           created_at: string
           id: string
+          is_featured: boolean
           is_hidden: boolean | null
+          like_count: number
           published_at: string | null
           source_url: string | null
           summary: string | null
+          tags: Json | null
           thumbnail: string | null
           title: string
           updated_at: string
@@ -351,14 +355,18 @@ export type Database = {
         Insert: {
           author?: string | null
           author_id: string
+          comment_count?: number
           content: string
           content_simplified?: boolean | null
           created_at?: string
           id?: string
+          is_featured?: boolean
           is_hidden?: boolean | null
+          like_count?: number
           published_at?: string | null
           source_url?: string | null
           summary?: string | null
+          tags?: Json | null
           thumbnail?: string | null
           title: string
           updated_at?: string
@@ -367,14 +375,18 @@ export type Database = {
         Update: {
           author?: string | null
           author_id?: string
+          comment_count?: number
           content?: string
           content_simplified?: boolean | null
           created_at?: string
           id?: string
+          is_featured?: boolean
           is_hidden?: boolean | null
+          like_count?: number
           published_at?: string | null
           source_url?: string | null
           summary?: string | null
+          tags?: Json | null
           thumbnail?: string | null
           title?: string
           updated_at?: string
@@ -430,6 +442,564 @@ export type Database = {
           recency_score?: number
           trending_score?: number
           velocity_score?: number
+        }
+        Relationships: []
+      }
+      comments: {
+        Row: {
+          author_id: string
+          content: string
+          content_id: string
+          content_type: string
+          created_at: string
+          id: string
+          is_deleted: boolean
+          parent_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          content: string
+          content_id: string
+          content_type: string
+          created_at?: string
+          id?: string
+          is_deleted?: boolean
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          id?: string
+          is_deleted?: boolean
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      likes: {
+        Row: {
+          content_id: string
+          content_type: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          content_id: string
+          content_type: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      mentor_profiles: {
+        Row: {
+          id: string
+          user_id: string
+          expertise_areas: string[]
+          years_experience: number
+          available: boolean
+          hourly_rate: number | null
+          bio: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          expertise_areas: string[]
+          years_experience: number
+          available?: boolean
+          hourly_rate?: number | null
+          bio?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          expertise_areas?: string[]
+          years_experience?: number
+          available?: boolean
+          hourly_rate?: number | null
+          bio?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          data: Json | null
+          id: string
+          is_read: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          is_read?: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          is_read?: boolean
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          plan_type: string
+          status: string
+          created_at: string
+          expires_at: string | null
+          payment_provider: string | null
+          provider_subscription_id: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          plan_type: string
+          status: string
+          created_at?: string
+          expires_at?: string | null
+          payment_provider?: string | null
+          provider_subscription_id?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          plan_type?: string
+          status?: string
+          created_at?: string
+          expires_at?: string | null
+          payment_provider?: string | null
+          provider_subscription_id?: string | null
+        }
+        Relationships: []
+      }
+      user_activities: {
+        Row: {
+          id: string
+          user_id: string
+          activity_type: string
+          target_id: string | null
+          target_type: string | null
+          data: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          activity_type: string
+          target_id?: string | null
+          target_type?: string | null
+          data?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          activity_type?: string
+          target_id?: string | null
+          target_type?: string | null
+          data?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      user_follows: {
+        Row: {
+          id: string
+          follower_id: string
+          following_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          follower_id: string
+          following_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          follower_id?: string
+          following_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      user_tag_follows: {
+        Row: {
+          id: string
+          user_id: string
+          tag: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          tag: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          tag?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      social_shares: {
+        Row: {
+          id: string
+          user_id: string
+          content_id: string
+          content_type: string
+          platform: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          content_id: string
+          content_type: string
+          platform: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          content_id?: string
+          content_type?: string
+          platform?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      user_interactions: {
+        Row: {
+          id: string
+          user_id: string
+          content_id: string
+          content_type: string
+          interaction_type: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          content_id: string
+          content_type: string
+          interaction_type: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          content_id?: string
+          content_type?: string
+          interaction_type?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      tag_follows: {
+        Row: {
+          id: string
+          user_id: string
+          tag_name: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          tag_name: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          tag_name?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      reports: {
+        Row: {
+          content_id: string
+          content_type: string
+          created_at: string
+          description: string | null
+          id: string
+          reason: string
+          reporter_id: string
+          reviewed_at: string | null
+          reviewer_id: string | null
+          status: string | null
+        }
+        Insert: {
+          content_id: string
+          content_type: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          reason: string
+          reporter_id: string
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          reason?: string
+          reporter_id?: string
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      payment_providers: {
+        Row: {
+          id: string
+          name: string
+          display_name: string
+          country_codes: string[]
+          currencies: string[]
+          payment_types: string[]
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          display_name: string
+          country_codes: string[]
+          currencies: string[]
+          payment_types: string[]
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          display_name?: string
+          country_codes?: string[]
+          currencies?: string[]
+          payment_types?: string[]
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      subscription_plans: {
+        Row: {
+          id: string
+          name: string
+          description: string
+          price_monthly: number
+          price_yearly: number
+          features: string[]
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description: string
+          price_monthly: number
+          price_yearly: number
+          features: string[]
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string
+          price_monthly?: number
+          price_yearly?: number
+          features?: string[]
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          plan_id: string
+          status: string
+          current_period_start: string
+          current_period_end: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          plan_id: string
+          status: string
+          current_period_start: string
+          current_period_end: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          plan_id?: string
+          status?: string
+          current_period_start?: string
+          current_period_end?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          id: string
+          user_id: string
+          theme: string
+          language: string
+          content_mode: string
+          email_notifications: boolean
+          push_notifications: boolean
+          anonymous_mode_default: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          theme?: string
+          language?: string
+          content_mode?: string
+          email_notifications?: boolean
+          push_notifications?: boolean
+          anonymous_mode_default?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          theme?: string
+          language?: string
+          content_mode?: string
+          email_notifications?: boolean
+          push_notifications?: boolean
+          anonymous_mode_default?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_badges: {
+        Row: {
+          id: string
+          user_id: string
+          badge_id: string
+          badge_name: string
+          badge_description: string
+          badge_icon: string
+          earned_at: string
+          points: number
+          category: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          badge_id: string
+          badge_name: string
+          badge_description: string
+          badge_icon: string
+          earned_at?: string
+          points: number
+          category: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          badge_id?: string
+          badge_name?: string
+          badge_description?: string
+          badge_icon?: string
+          earned_at?: string
+          points?: number
+          category?: string
+        }
+        Relationships: []
+      }
+      user_levels: {
+        Row: {
+          id: string
+          user_id: string
+          level: number
+          experience_points: number
+          badges: string[]
+          achievements: string[]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          level?: number
+          experience_points?: number
+          badges?: string[]
+          achievements?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          level?: number
+          experience_points?: number
+          badges?: string[]
+          achievements?: string[]
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }

@@ -8,14 +8,10 @@ import { useInView } from 'react-intersection-observer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
-import type { Tables } from '@/integrations/supabase/types';
+import type { Tables } from '@/integrations/supabase/types_updated';
 
 // 생성된 타입 사용
-type NewsArticle = Tables<'news_articles'> & {
-  tags?: string[];
-  like_count?: number;
-  is_featured?: boolean;
-};
+type NewsArticle = Tables<'news_articles'>;
 
 interface InfiniteNewsListProps {
   searchQuery?: string;
@@ -302,16 +298,16 @@ export function InfiniteNewsList({ searchQuery, selectedTags, sortBy = 'latest' 
               </p>
               
               {/* 태그 */}
-              {article.tags && article.tags.length > 0 && (
+              {article.tags && Array.isArray(article.tags) && article.tags.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {article.tags.slice(0, 3).map((tag) => (
+                  {(article.tags as string[]).slice(0, 3).map((tag) => (
                     <Badge key={tag} variant="outline" className="text-xs">
                       {tag}
                     </Badge>
                   ))}
-                  {article.tags.length > 3 && (
+                  {(article.tags as string[]).length > 3 && (
                     <Badge variant="outline" className="text-xs">
-                      +{article.tags.length - 3}
+                      +{(article.tags as string[]).length - 3}
                     </Badge>
                   )}
                 </div>
