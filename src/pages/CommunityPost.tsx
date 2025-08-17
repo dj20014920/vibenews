@@ -111,21 +111,18 @@ const CommunityPost = () => {
     try {
       const { data, error } = await supabase
         .from('comments')
-        .select(`
-          *,
-          author:users!comments_author_id_fkey(nickname, avatar_url)
-        `)
-        .eq('post_id', id)
-        .eq('is_hidden', false)
+        .select('*')
+        .eq('content_id', id)
+        .eq('content_type', 'post')
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      // author가 제대로 조인되지 않은 경우 기본값 설정
-      const commentsWithAuthor = data?.map(comment => ({
+      // 댓글 데이터를 직접 설정 (author 정보는 별도 처리)
+      const commentsData = data?.map(comment => ({
         ...comment,
-        author: comment.author || { nickname: comment.anonymous_author_name || '익명', avatar_url: '' }
+        author: { nickname: '익명', avatar_url: '' }
       })) || [];
-      setComments(commentsWithAuthor as any);
+      setComments(commentsData);
     } catch (error) {
       console.error('Error loading comments:', error);
     } finally {
@@ -144,7 +141,8 @@ const CommunityPost = () => {
       const { data: existingLike } = await supabase
         .from('likes')
         .select('id')
-        .eq('post_id', post.id)
+        .eq('content_id', post.id)
+        .eq('content_type', 'post')
         .eq('user_id', user.id)
         .single();
 
@@ -153,7 +151,8 @@ const CommunityPost = () => {
         await supabase
           .from('likes')
           .delete()
-          .eq('post_id', post.id)
+          .eq('content_id', post.id)
+          .eq('content_type', 'post')
           .eq('user_id', user.id);
 
         toast({
