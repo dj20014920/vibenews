@@ -83,7 +83,7 @@ const NewsDetail = () => {
             sessionStorage.setItem(storageKey, '1');
           }
         }
-        setArticle({ ...data, view_count: updatedViewCount });
+        setArticle({ ...data, view_count: updatedViewCount } as any);
       }
     } catch (error) {
       console.error('Error loading article:', error);
@@ -113,7 +113,7 @@ const NewsDetail = () => {
         ...comment,
         author: comment.author || { nickname: comment.anonymous_author_name || '익명', avatar_url: '' }
       })) || [];
-      setComments(commentsWithAuthor);
+      setComments(commentsWithAuthor as any);
     } catch (error) {
       console.error('Error loading comments:', error);
     } finally {
@@ -153,7 +153,8 @@ const NewsDetail = () => {
         await supabase
           .from('likes')
           .insert({
-            article_id: article.id,
+            content_id: article.id,
+            content_type: 'news',
             user_id: user.id,
           });
 
@@ -238,9 +239,10 @@ const NewsDetail = () => {
         .from('comments')
         .insert({
           content: newComment.trim(),
-          article_id: article.id,
+          content_id: article.id,
+          content_type: 'news',
           author_id: isAnonymous ? null : user.id,
-          anonymous_author_id: isAnonymous ? `익명_${user.id.slice(0, 8)}` : null,
+          anonymous_author_name: isAnonymous ? `익명_${user.id.slice(0, 8)}` : null,
           is_anonymous: isAnonymous,
         });
 

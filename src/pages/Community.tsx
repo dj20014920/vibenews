@@ -65,7 +65,7 @@ export default function Community() {
 
         const { data, error } = await query.limit(30);
         if (error) throw error;
-        setPosts(data || []);
+        setPosts((data || []) as any);
       } catch (e) {
         console.error('Failed to load community posts', e);
       } finally {

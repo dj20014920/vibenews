@@ -95,7 +95,7 @@ const CommunityPost = () => {
             sessionStorage.setItem(storageKey, '1');
           }
         }
-        setPost({ ...postWithAuthor, view_count: updatedViewCount });
+        setPost({ ...postWithAuthor, view_count: updatedViewCount } as any);
       }
     } catch (error) {
       console.error('Error loading post:', error);
@@ -125,7 +125,7 @@ const CommunityPost = () => {
         ...comment,
         author: comment.author || { nickname: comment.anonymous_author_name || '익명', avatar_url: '' }
       })) || [];
-      setComments(commentsWithAuthor);
+      setComments(commentsWithAuthor as any);
     } catch (error) {
       console.error('Error loading comments:', error);
     } finally {
@@ -165,7 +165,8 @@ const CommunityPost = () => {
         await supabase
           .from('likes')
           .insert({
-            post_id: post.id,
+            content_id: post.id,
+            content_type: 'post',
             user_id: user.id,
           });
 
@@ -250,9 +251,10 @@ const CommunityPost = () => {
         .from('comments')
         .insert({
           content: newComment.trim(),
-          post_id: post.id,
+          content_id: post.id,
+          content_type: 'post',
           author_id: isAnonymous ? null : user.id,
-          anonymous_author_id: isAnonymous ? `익명_${user.id.slice(0, 8)}` : null,
+          anonymous_author_name: isAnonymous ? `익명_${user.id.slice(0, 8)}` : null,
           is_anonymous: isAnonymous,
         });
 

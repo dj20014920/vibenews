@@ -65,13 +65,13 @@ export default function Index() {
         .order('like_count', { ascending: false })
         .limit(4)
 
-      setLatestNews(newsData || [])
-      setPopularPosts(postsData || [])
+      setLatestNews((newsData || []) as any)
+      setPopularPosts((postsData || []) as any)
 
       // Generate trending tags from both news and posts
       const allTags = [
-        ...(newsData?.flatMap(article => article.tags) || []),
-        ...(postsData?.flatMap(post => post.tags) || [])
+        ...(newsData?.flatMap(article => Array.isArray(article.tags) ? article.tags as string[] : []) || []),
+        ...(postsData?.flatMap((post: any) => Array.isArray(post.tags) ? post.tags as string[] : []) || [])
       ]
       const tagCounts = allTags.reduce((acc, tag) => {
         acc[tag] = (acc[tag] || 0) + 1
@@ -79,7 +79,7 @@ export default function Index() {
       }, {} as Record<string, number>)
       
       const trending = Object.entries(tagCounts)
-        .sort(([,a], [,b]) => b - a)
+        .sort(([,a], [,b]) => (b as number) - (a as number))
         .slice(0, 8)
         .map(([tag]) => tag)
       

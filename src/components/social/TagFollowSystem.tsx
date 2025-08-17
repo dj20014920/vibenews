@@ -90,10 +90,14 @@ export const TagFollowSystem = () => {
       // 모든 태그를 수집하고 빈도 계산
       const allTags: string[] = [];
       newsData?.forEach(item => {
-        if (item.tags) allTags.push(...item.tags);
+        if (item.tags && Array.isArray(item.tags)) {
+          allTags.push(...(item.tags as string[]));
+        }
       });
       postsData?.forEach(item => {
-        if (item.tags) allTags.push(...item.tags);
+        if (item.tags && Array.isArray(item.tags)) {
+          allTags.push(...(item.tags as string[]));
+        }
       });
 
       const tagCounts = allTags.reduce((acc, tag) => {
@@ -220,10 +224,14 @@ export const TagFollowSystem = () => {
 
       const allTags: string[] = [];
       newsData?.forEach(item => {
-        if (item.tags) allTags.push(...item.tags);
+        if (item.tags && Array.isArray(item.tags)) {
+          allTags.push(...(item.tags as string[]));
+        }
       });
       postsData?.forEach(item => {
-        if (item.tags) allTags.push(...item.tags);
+        if (item.tags && Array.isArray(item.tags)) {
+          allTags.push(...(item.tags as string[]));
+        }
       });
 
       const uniqueTags = Array.from(new Set(allTags));

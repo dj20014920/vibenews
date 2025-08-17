@@ -83,11 +83,11 @@ export default function Profile() {
       
       setProfile(profileData)
       setEditForm({
-        nickname: profileData.nickname || '',
-        bio: profileData.bio || '',
-        website_url: profileData.website_url || '',
-        github_username: profileData.github_username || '',
-        twitter_username: profileData.twitter_username || ''
+        nickname: (profileData as any).nickname || '',
+        bio: (profileData as any).bio || '',
+        website_url: (profileData as any).website_url || '',
+        github_username: (profileData as any).github_username || '',
+        twitter_username: (profileData as any).twitter_username || ''
       })
 
       // Fetch user stats

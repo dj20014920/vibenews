@@ -70,7 +70,7 @@ export function SubscriptionStatus() {
           throw subError;
         }
         
-        setSubscription(subData);
+        setSubscription(subData as any);
       }
     } catch (error) {
       console.error('구독 정보 로드 실패:', error);

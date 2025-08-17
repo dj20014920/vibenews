@@ -202,7 +202,14 @@ export const useUserLevels = () => {
         .from('user_badges')
         .insert({
           user_id: user.id,
-          ...badge,
+          badge_id: badge.badge_id,
+          badge_name: badge.badge_name,
+          badge_description: badge.badge_description,
+          badge_icon: badge.badge_icon,
+          badge_color: badge.badge_color,
+          badge_category: badge.badge_category,
+          points: badge.badge_level || 10,
+          category: badge.badge_category,
           earned_at: new Date().toISOString()
         })
         .select()
