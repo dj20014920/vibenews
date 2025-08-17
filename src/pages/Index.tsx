@@ -8,6 +8,8 @@ import { Separator } from '@/components/ui/separator'
 import { Eye, Heart, MessageSquare, Clock, TrendingUp, Sparkles, Code2, Users, Crown, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SEO } from '@/components/seo/SEO'
+import { WelcomeModal } from '@/components/onboarding/WelcomeModal'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface NewsArticle {
   id: string
@@ -36,13 +38,22 @@ interface CommunityPost {
 }
 
 export default function Index() {
+  const { user } = useAuth()
   const [latestNews, setLatestNews] = useState<NewsArticle[]>([])
   const [popularPosts, setPopularPosts] = useState<CommunityPost[]>([])
   const [trendingTags, setTrendingTags] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false)
 
   useEffect(() => {
     fetchHomeData()
+    
+    // 첫 방문자를 위한 환영 모달 표시 (localStorage로 확인)
+    const hasVisited = localStorage.getItem('hasVisited')
+    if (!hasVisited) {
+      setShowWelcomeModal(true)
+      localStorage.setItem('hasVisited', 'true')
+    }
   }, [])
 
   const fetchHomeData = async () => {
@@ -238,6 +249,11 @@ export default function Index() {
       <SEO
         title="VibeNews – 바이브 코딩 트렌드 뉴스 & 커뮤니티"
         description="AI 코딩 도구 뉴스와 커뮤니티. Cursor, Lovable, GitHub Copilot 등 최신 트렌드를 한 곳에서."
+      />
+      <WelcomeModal 
+        isOpen={showWelcomeModal} 
+        onClose={() => setShowWelcomeModal(false)}
+        isFirstVisit={true}
       />
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
       {/* Hero Section */}

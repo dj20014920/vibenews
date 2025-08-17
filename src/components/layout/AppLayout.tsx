@@ -10,6 +10,9 @@ import { Link, useNavigate } from "react-router-dom"
 import { User, LogOut, Settings } from "lucide-react"
 import { FloatingDiscoveryMenu } from "./FloatingDiscoveryMenu"
 import { ScrollToTopButton } from "./ScrollToTopButton"
+import { NotificationBell } from "@/components/notifications/NotificationBell"
+import { HelpCenter } from "@/components/help/HelpCenter"
+import { FeedbackWidget } from "@/components/feedback/FeedbackWidget"
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -39,6 +42,8 @@ export function AppLayout({ children }: AppLayoutProps) {
               </div>
               
               <div className="flex items-center space-x-4">
+                <HelpCenter />
+                <NotificationBell />
                 <ThemeToggle />
                 
                 {loading ? (
@@ -88,6 +93,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             {children}
           </main>
         </div>
+        <FeedbackWidget />
         <FloatingDiscoveryMenu />
         <ScrollToTopButton />
       </div>
