@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Link, useNavigate } from "react-router-dom"
 import { User, LogOut, Settings } from "lucide-react"
 import { FloatingDiscoveryMenu } from "./FloatingDiscoveryMenu"
+import { ScrollToTopButton } from "./ScrollToTopButton"
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -88,6 +89,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           </main>
         </div>
         <FloatingDiscoveryMenu />
+        <ScrollToTopButton />
       </div>
     </SidebarProvider>
   )
