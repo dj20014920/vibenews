@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { UserEquipment } from '@/hooks/useStore';
-import { supabase } from '@/integrations/supabase/client';
 
 interface UserNameDisplayProps {
   userId: string;
@@ -21,13 +20,14 @@ const UserNameDisplay: React.FC<UserNameDisplayProps> = ({
   useEffect(() => {
     const fetchEquipment = async () => {
       try {
-        const { data, error } = await supabase.rpc('get_user_equipment', {
-          p_user_id: userId
+        // 임시로 기본 장비 설정 사용 (데이터베이스 테이블이 준비될 때까지)
+        setEquipment({
+          name_color: '#000000',
+          name_effect: 'none',
+          equipped_animation: 'none',
+          badge: {},
+          frame: {}
         });
-
-        if (!error && data) {
-          setEquipment(data);
-        }
       } catch (error) {
         console.error('장착 아이템 조회 실패:', error);
       } finally {
