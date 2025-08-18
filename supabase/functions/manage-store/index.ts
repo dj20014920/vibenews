@@ -59,10 +59,9 @@ serve(async (req) => {
 
       if (rpcError) throw rpcError;
 
-      const result = rpcData as { success: boolean; error?: string; new_points?: number };
+      const result = rpcData as { success: boolean; error?: string; new_points?: number; message?: string };
 
       if (!result.success) {
-        // The transaction failed, throw an error with the message from the DB function
         throw new Error(result.error || "Purchase failed due to an unknown reason.");
       }
 
@@ -75,6 +74,7 @@ serve(async (req) => {
     }
 
   } catch (error) {
+    console.error("Store function error:", error);
     const errorMessage = error instanceof z.ZodError
       ? error.errors.map(e => e.message).join(', ')
       : error.message;

@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "12.2.12 (cd3cf9e)"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       audit_logs: {
@@ -541,6 +516,48 @@ export type Database = {
         }
         Relationships: []
       }
+      store_items: {
+        Row: {
+          created_at: string | null
+          description: string
+          display_order: number | null
+          id: string
+          is_active: boolean | null
+          item_type: string
+          metadata: Json | null
+          name: string
+          preview_image: string | null
+          price: number
+          rarity: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          item_type: string
+          metadata?: Json | null
+          name: string
+          preview_image?: string | null
+          price: number
+          rarity?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          item_type?: string
+          metadata?: Json | null
+          name?: string
+          preview_image?: string | null
+          price?: number
+          rarity?: string | null
+        }
+        Relationships: []
+      }
       trending_scores: {
         Row: {
           calculated_at: string
@@ -574,6 +591,152 @@ export type Database = {
           recency_score?: number
           trending_score?: number
           velocity_score?: number
+        }
+        Relationships: []
+      }
+      user_badges: {
+        Row: {
+          badge_category: string
+          badge_color: string
+          badge_description: string
+          badge_icon: string
+          badge_id: string
+          badge_level: number | null
+          badge_name: string
+          earned_at: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          badge_category?: string
+          badge_color?: string
+          badge_description: string
+          badge_icon: string
+          badge_id: string
+          badge_level?: number | null
+          badge_name: string
+          earned_at?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          badge_category?: string
+          badge_color?: string
+          badge_description?: string
+          badge_icon?: string
+          badge_id?: string
+          badge_level?: number | null
+          badge_name?: string
+          earned_at?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_equipment: {
+        Row: {
+          equipped_animation: string | null
+          equipped_badge_id: string | null
+          equipped_frame_id: string | null
+          id: string
+          name_color: string | null
+          name_effect: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          equipped_animation?: string | null
+          equipped_badge_id?: string | null
+          equipped_frame_id?: string | null
+          id?: string
+          name_color?: string | null
+          name_effect?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          equipped_animation?: string | null
+          equipped_badge_id?: string | null
+          equipped_frame_id?: string | null
+          id?: string
+          name_color?: string | null
+          name_effect?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_equipment_equipped_badge_id_fkey"
+            columns: ["equipped_badge_id"]
+            isOneToOne: false
+            referencedRelation: "store_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_equipment_equipped_frame_id_fkey"
+            columns: ["equipped_frame_id"]
+            isOneToOne: false
+            referencedRelation: "store_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_inventory: {
+        Row: {
+          id: string
+          is_equipped: boolean | null
+          item_id: string
+          purchased_at: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          is_equipped?: boolean | null
+          item_id: string
+          purchased_at?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          is_equipped?: boolean | null
+          item_id?: string
+          purchased_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_inventory_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "store_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_levels: {
+        Row: {
+          created_at: string | null
+          id: string
+          level: number
+          points: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          level?: number
+          points?: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          level?: number
+          points?: number
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -635,6 +798,14 @@ export type Database = {
       }
     }
     Functions: {
+      equip_item: {
+        Args: { p_item_id: string; p_user_id: string }
+        Returns: Json
+      }
+      get_user_equipment: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
       has_role: {
         Args: { p_role: string; p_user_id: string }
         Returns: boolean
@@ -650,6 +821,10 @@ export type Database = {
       log_security_event: {
         Args: { event_type: string; metadata?: Json; target_user_id?: string }
         Returns: undefined
+      }
+      purchase_item_tx: {
+        Args: { p_item_id: string; p_user_id: string }
+        Returns: Json
       }
       verify_admin_action: {
         Args: { action_description: string }
@@ -783,9 +958,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

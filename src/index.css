@@ -104,6 +104,38 @@
   }
 }
 
+/* 무지개 효과 애니메이션 */
+@keyframes rainbow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* 글로우 효과 */
+.glow-effect {
+  text-shadow: 0 0 8px currentColor, 0 0 16px currentColor;
+}
+
+/* 그림자 효과 */
+.shadow-effect {
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+/* 프레임 효과 */
+.ornate-frame {
+  border-radius: 12px;
+  border-style: solid;
+}
+
+/* 반응성 애니메이션 */
+@media (prefers-reduced-motion: reduce) {
+  .rainbow-text,
+  .animate-pulse,
+  .animate-bounce {
+    animation: none !important;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;
