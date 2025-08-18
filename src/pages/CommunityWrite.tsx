@@ -86,6 +86,15 @@ const CommunityWrite = () => {
       return;
     }
 
+    if (!room) {
+      toast({
+        title: "카테고리 선택 필요",
+        description: "글을 작성할 카테고리를 선택해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -101,13 +110,18 @@ const CommunityWrite = () => {
         is_anonymous: isAnonymous,
       };
 
+      console.log('Submitting post data:', postData);
+
       const { data, error } = await supabase
         .from('community_posts')
         .insert(postData)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
       toast({
         title: "글 작성 완료",
@@ -115,11 +129,23 @@ const CommunityWrite = () => {
       });
 
       navigate(`/community/post/${data.id}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating post:', error);
+      
+      // 상세한 오류 메시지 제공
+      let errorMessage = "글 작성 중 오류가 발생했습니다.";
+      
+      if (error.code === '42501') {
+        errorMessage = "권한이 없습니다. 로그인 상태를 확인해주세요.";
+      } else if (error.code === '23503') {
+        errorMessage = "참조 무결성 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+      } else if (error.message) {
+        errorMessage = `오류: ${error.message}`;
+      }
+      
       toast({
         title: "작성 실패",
-        description: "글 작성 중 오류가 발생했습니다. 다시 시도해주세요.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

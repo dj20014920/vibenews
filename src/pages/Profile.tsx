@@ -72,14 +72,56 @@ export default function Profile() {
     try {
       setLoading(true)
       
-      // Fetch user profile
-      const { data: profileData, error: profileError } = await supabase
+      // 사용자 프로필 조회 (존재하지 않을 경우 생성)
+      let { data: profileData, error: profileError } = await supabase
         .from('users')
         .select('*')
         .eq('id', targetUserId)
-        .single()
+        .maybeSingle()
 
-      if (profileError) throw profileError
+      // 프로필이 존재하지 않는 경우 (자신의 프로필일 때만 생성)
+      if (!profileData && isOwnProfile && user) {
+        try {
+          // 프로필 생성
+          const { data: newProfile, error: createError } = await supabase
+            .from('users')
+            .insert({
+              id: user.id,
+              email: user.email!,
+              nickname: user.user_metadata?.nickname || user.email?.split('@')[0] || 'User',
+              role: 'user',
+              avatar_url: user.user_metadata?.avatar_url
+            })
+            .select()
+            .single();
+
+          if (createError) throw createError;
+          profileData = newProfile;
+          
+          toast({
+            title: "프로필 생성 완료",
+            description: "새로운 프로필이 생성되었습니다.",
+          });
+        } catch (createError) {
+          console.error('Error creating profile:', createError);
+          toast({
+            title: "프로필 생성 실패",
+            description: "프로필을 생성하는 중 오류가 발생했습니다.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      if (!profileData) {
+        // 다른 사용자의 프로필을 찾을 수 없는 경우
+        setProfile(null);
+        return;
+      }
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        throw profileError;
+      }
       
       setProfile(profileData)
       setEditForm({
@@ -90,7 +132,7 @@ export default function Profile() {
         twitter_username: (profileData as any).twitter_username || ''
       })
 
-      // Fetch user stats
+      // 사용자 통계 조회
       const [postsResult, commentsResult, likesResult, followersResult, followingResult] = await Promise.all([
         supabase.from('community_posts').select('id', { count: 'exact' }).eq('author_id', targetUserId),
         supabase.from('comments').select('id', { count: 'exact' }).eq('author_id', targetUserId),
@@ -107,7 +149,7 @@ export default function Profile() {
         following: followingResult.count || 0
       })
 
-      // Check if current user is following this profile
+      // 팔로우 상태 확인 (다른 사용자 프로필일 때만)
       if (user && !isOwnProfile) {
         const { data: followData } = await supabase
           .from('user_follows')
@@ -119,11 +161,13 @@ export default function Profile() {
         setIsFollowing(!!followData)
       }
     } catch (error: any) {
+      console.error('Error fetching profile:', error);
       toast({
         title: "프로필 로드 실패",
-        description: error.message,
+        description: error.message || "프로필을 불러오는 중 오류가 발생했습니다.",
         variant: "destructive",
       })
+      setProfile(null);
     } finally {
       setLoading(false)
     }

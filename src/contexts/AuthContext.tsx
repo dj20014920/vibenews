@@ -57,6 +57,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     console.log("AuthProvider useEffect running, user:", user, "loading:", loading);
   }, [user, loading]);
 
+  // 사용자 초기화 (atomic하게 처리)
+  const initializeUser = async (user: User) => {
+    try {
+      const { data, error } = await supabase.rpc('initialize_user', {
+        p_user_id: user.id,
+        p_email: user.email!,
+        p_nickname: user.user_metadata?.nickname,
+        p_avatar_url: user.user_metadata?.avatar_url
+      });
+
+      if (error) throw error;
+
+      // 결과에서 프로필과 설정 정보 추출
+      const result = data as { profile: any; preferences: any };
+      
+      setRole(result.profile?.role || 'user');
+      
+      if (result.preferences) {
+        setPreferences({
+          theme: result.preferences.theme as 'light' | 'dark' | 'system',
+          language: result.preferences.language as 'ko' | 'en' | 'ja' | 'zh' | 'hi',
+          content_mode: result.preferences.content_mode as 'developer' | 'beginner',
+          email_notifications: result.preferences.email_notifications,
+          push_notifications: result.preferences.push_notifications,
+          anonymous_mode_default: result.preferences.anonymous_mode_default,
+        });
+      }
+
+      console.log('User initialized successfully');
+    } catch (error) {
+      console.error('Error initializing user:', error);
+      // fallback values
+      setRole('user');
+      setPreferences(null);
+      throw error;
+    }
+  };
+
   // 사용자 프로필 및 역할 로드
   const loadUserProfile = async (userId: string) => {
     try {
@@ -69,7 +107,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (error) throw error;
       setRole(data?.role || 'user');
 
-      // 이제 사용자 설정을 로드합니다.
+      // 사용자 설정 로드
       await loadUserPreferences(userId);
 
     } catch (error) {
@@ -77,8 +115,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setRole('user'); // Fallback to basic user role on error
     }
   };
-
-  // 사용자 설정 로드
   const loadUserPreferences = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -116,31 +152,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(currentUser);
         
         if (currentUser) {
-          await loadUserProfile(currentUser.id);
-          
-          // 프로필 생성 (필요시)
-          if (event === 'SIGNED_IN') {
-            setTimeout(async () => {
-              try {
-                const { data: existingProfile } = await supabase
-                  .from('users')
-                  .select('id')
-                  .eq('id', session.user.id)
-                  .maybeSingle();
-
-                if (!existingProfile) {
-                  await supabase.from('users').insert({
-                    id: session.user.id,
-                    email: session.user.email!,
-                    nickname: session.user.user_metadata?.nickname || session.user.email?.split('@')[0] || 'User',
-                    provider: session.user.app_metadata?.provider || 'email',
-                    avatar_url: session.user.user_metadata?.avatar_url
-                  });
-                }
-              } catch (error) {
-                console.error('Error creating user profile:', error);
-              }
-            }, 100);
+          try {
+            // 사용자 초기화 (프로필 생성 및 설정 로드를 한 번에 처리)
+            await initializeUser(currentUser);
+          } catch (error) {
+            console.error('Error in auth state change handler:', error);
+            toast({
+              title: "프로필 설정 오류",
+              description: "사용자 프로필을 설정하는 중 오류가 발생했습니다.",
+              variant: "destructive",
+            });
           }
         } else {
           setPreferences(null);
@@ -152,12 +173,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
 
     // 초기 세션 확인
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        loadUserProfile(session.user.id);
+        try {
+          await initializeUser(session.user);
+        } catch (error) {
+          console.error('Error in initial session handler:', error);
+        }
       }
       
       setLoading(false);
