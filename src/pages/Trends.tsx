@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
 import { TrendingUp, TrendingDown, Minus, Eye, Heart, MessageSquare, Share, Calendar, DollarSign } from 'lucide-react'
+
+import { supabase } from '@/integrations/supabase/client'
+import type { Tables } from '@/integrations/supabase/types_updated'
 
 interface TrendData {
   id: string
@@ -20,11 +23,12 @@ interface TrendData {
   description: string
   timeframe: string
   marketValue?: string
+  sourceUrl?: string
 }
 
-// 실제 트렌드 데이터는 trending_scores 테이블과 외부 API를 통해 수집
-// 현재는 샘플 데이터로 UI 구현
-const trendingData: TrendData[] = [
+// 실제 트렌드 데이터는 Supabase의 trending_scores 기반 뷰/집계에서 가져옵니다.
+// 초기 로드 시 Supabase에서 최신 데이터를 가져오고, 없으면 샘플 데이터로 폴백합니다.
+const fallbackData: TrendData[] = [
   {
     id: '1',
     title: 'Cursor IDE 급성장',
@@ -114,6 +118,39 @@ const trendingData: TrendData[] = [
   }
 ]
 
+function normalizeRowToTrendData(row: Tables<'trending_scores'> & { meta?: any }): TrendData {
+  const category = row?.meta?.category ?? 'tool'
+  const title = row?.meta?.title ?? `${row.content_type} ${row.content_id}`
+  const description = row?.meta?.description ?? '트렌드 데이터'
+  const tags: string[] = row?.meta?.tags ?? []
+  const views = row?.meta?.views ?? Math.round(row.engagement_score * 100)
+  const likes = row?.meta?.likes ?? Math.round(row.quality_score * 50)
+  const comments = row?.meta?.comments ?? Math.round(row.engagement_score * 20)
+  const shares = row?.meta?.shares ?? Math.round(row.velocity_score * 10)
+  const trendPercentage = Math.round(row.trending_score * 100)
+  const trend: TrendData['trend'] = trendPercentage > 10 ? 'up' : trendPercentage < -10 ? 'down' : 'stable'
+  const marketValue = row?.meta?.marketValue
+  const timeframe = row?.meta?.timeframe ?? '최근'
+  const sourceUrl = row?.meta?.url
+
+  return {
+    id: row.id,
+    title,
+    category,
+    trend,
+    trendPercentage,
+    views,
+    likes,
+    comments,
+    shares,
+    tags,
+    description,
+    timeframe,
+    marketValue,
+    sourceUrl,
+  }
+}
+
 const getTrendIcon = (trend: string) => {
   switch (trend) {
     case 'up':
@@ -169,6 +206,66 @@ const getCategoryText = (category: string) => {
 export default function Trends() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [timeframe, setTimeframe] = useState<string>('week')
+  const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
+  const [trendingData, setTrendingData] = useState<TrendData[]>(fallbackData)
+
+  useEffect(() => {
+    let isMounted = true
+    const fetchTrends = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        // Prefer new normalized feed if available
+        const { data: feed, error: feedErr } = await supabase
+          .from<any>('trends_feed')
+          .select('*')
+          .order('trending_score', { ascending: false })
+          .limit(50)
+
+        if (feedErr) throw feedErr
+
+        const mappedFromFeed: TrendData[] = (feed || []).map((r: any) => ({
+          id: r.id,
+          title: r.title,
+          category: r.category,
+          trend: r.trending_score > 0.1 ? 'up' : r.trending_score < -0.1 ? 'down' : 'stable',
+          trendPercentage: Math.round((r.trending_score ?? 0) * 100),
+          views: r.user_count ?? 0,
+          likes: Math.round((r.metric_value ?? 0) / 10),
+          comments: Math.round((r.metric_value ?? 0) / 25),
+          shares: Math.round((r.metric_value ?? 0) / 50),
+          tags: r.tags ?? [],
+          description: r.description ?? '',
+          timeframe: r.capture_date ?? '최근',
+          marketValue: r.market_value ?? undefined,
+          sourceUrl: r.source_url ?? undefined,
+        }))
+
+        if (isMounted && mappedFromFeed.length) {
+          setTrendingData(mappedFromFeed)
+        } else {
+          // fallback: compute from trending_scores if feed is empty
+          const { data, error } = await supabase
+            .from('trending_scores')
+            .select('*')
+            .order('trending_score', { ascending: false })
+            .limit(50)
+          if (error) throw error
+          const rows = (data || []) as Tables<'trending_scores'>[]
+          const mapped = rows.map((r) => normalizeRowToTrendData(r))
+          if (isMounted && mapped.length) setTrendingData(mapped)
+        }
+      } catch (e: any) {
+        console.error('Failed to load trends', e)
+        setError(e?.message ?? '트렌드 데이터를 불러오지 못했습니다')
+      } finally {
+        if (isMounted) setLoading(false)
+      }
+    }
+    fetchTrends()
+    return () => { isMounted = false }
+  }, [])
 
   const filteredData = trendingData.filter(item =>
     selectedCategory === 'all' || item.category === selectedCategory
@@ -178,7 +275,7 @@ export default function Trends() {
   const downTrends = trendingData.filter(item => item.trend === 'down').length
   const stableTrends = trendingData.filter(item => item.trend === 'stable').length
 
-  const topTrend = trendingData.sort((a, b) => b.trendPercentage - a.trendPercentage)[0]
+  const topTrend = [...trendingData].sort((a, b) => b.trendPercentage - a.trendPercentage)[0]
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -188,6 +285,10 @@ export default function Trends() {
           실시간으로 업데이트되는 AI 코딩 도구와 기술 트렌드를 확인하세요
         </p>
       </div>
+
+      {error && (
+        <div className="text-sm text-red-500">{error}</div>
+      )}
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -247,7 +348,10 @@ export default function Trends() {
         </TabsList>
         
         <TabsContent value="all" className="space-y-4">
-          {filteredData.map((item) => (
+          {loading && (
+            <div className="text-sm text-muted-foreground">로딩 중…</div>
+          )}
+          {!loading && filteredData.map((item) => (
             <Card key={item.id}>
               <CardHeader>
                 <div className="flex items-start justify-between">
@@ -325,7 +429,10 @@ export default function Trends() {
         
         {['tool', 'technology', 'framework', 'news'].map(category => (
           <TabsContent key={category} value={category} className="space-y-4">
-            {trendingData.filter(item => item.category === category).map((item) => (
+            {loading && (
+              <div className="text-sm text-muted-foreground">로딩 중…</div>
+            )}
+            {!loading && trendingData.filter(item => item.category === category).map((item) => (
               <Card key={item.id}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -385,7 +492,11 @@ export default function Trends() {
                     </div>
 
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline">상세보기</Button>
+                      {item.sourceUrl && (
+                        <a href={item.sourceUrl} target="_blank" rel="noreferrer">
+                          <Button size="sm" variant="outline">출처 열기</Button>
+                        </a>
+                      )}
                       <Button size="sm" variant="outline">관련 뉴스</Button>
                     </div>
                   </div>
