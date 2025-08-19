@@ -20,7 +20,6 @@ import Bookmarks from "./pages/Bookmarks";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
-import Tools from "./pages/Tools";
 import Trends from "./pages/Trends";
 import Admin from "./pages/Admin";
 import AdminUsers from "./pages/AdminUsers";
@@ -54,8 +53,7 @@ const App = () => (
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                   <Route path="/profile/:userId" element={<Profile />} />
-                  <Route path="/tools" element={<Tools />} />
-        <Route path="/trends" element={<Trends />} />
+                  <Route path="/trends" element={<Trends />} />
                   <Route path="/subscription" element={<ProtectedRoute><Subscription /></ProtectedRoute>} />
                   <Route path="/store" element={<ProtectedRoute><Store /></ProtectedRoute>} />
                   <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />

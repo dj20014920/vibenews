@@ -1,4 +1,4 @@
-import { Home, Newspaper, Users, Search, Bookmark, Settings, Code2, TrendingUp, Shield, Crown, Store, BookText, Package } from "lucide-react"
+import { Home, Newspaper, Users, Search, Bookmark, Settings, TrendingUp, Shield, Crown, Store, BookText, Package } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 
@@ -26,10 +26,6 @@ export function AppSidebar() {
     { title: t('sidebar.search'), url: "/search", icon: Search },
     { title: t('sidebar.store'), url: "/store", icon: Store },
     { title: "인벤토리", url: "/inventory", icon: Package },
-  ]
-
-  const toolsItems = [
-    { title: t('sidebar.tools'), url: "/tools", icon: Code2 },
     { title: "트렌드", url: "/trends", icon: TrendingUp },
   ]
 
@@ -69,24 +65,6 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} end className={getNavCls}>
-                      <item.icon className="mr-2 h-4 w-4" />
-                      {state !== "collapsed" && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>도구 & 학습</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {toolsItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavCls}>
                       <item.icon className="mr-2 h-4 w-4" />
                       {state !== "collapsed" && <span>{item.title}</span>}
                     </NavLink>

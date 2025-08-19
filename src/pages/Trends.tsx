@@ -9,6 +9,26 @@ import { TrendingUp, TrendingDown, Minus, Eye, Heart, MessageSquare, Share, Cale
 import { supabase } from '@/integrations/supabase/client'
 import type { Tables } from '@/integrations/supabase/types_updated'
 
+// 🔧 Type-safe interface for trends_feed API response
+interface TrendsFeedRow {
+  id: string
+  title: string
+  category: 'tool' | 'technology' | 'framework' | 'news'
+  metric_type: string
+  metric_value: number
+  yoy_delta: number
+  source_name: string
+  source_url: string | null
+  capture_date: string | null
+  tags: string[] | null
+  description: string | null
+  market_value: string | null
+  user_count: number | null
+  enterprise_count: number | null
+  price_plan: string | null
+  trending_score: number
+}
+
 interface TrendData {
   id: string
   title: string
@@ -118,36 +138,27 @@ const fallbackData: TrendData[] = [
   }
 ]
 
-function normalizeRowToTrendData(row: Tables<'trending_scores'> & { meta?: any }): TrendData {
-  const category = row?.meta?.category ?? 'tool'
-  const title = row?.meta?.title ?? `${row.content_type} ${row.content_id}`
-  const description = row?.meta?.description ?? '트렌드 데이터'
-  const tags: string[] = row?.meta?.tags ?? []
-  const views = row?.meta?.views ?? Math.round(row.engagement_score * 100)
-  const likes = row?.meta?.likes ?? Math.round(row.quality_score * 50)
-  const comments = row?.meta?.comments ?? Math.round(row.engagement_score * 20)
-  const shares = row?.meta?.shares ?? Math.round(row.velocity_score * 10)
-  const trendPercentage = Math.round(row.trending_score * 100)
-  const trend: TrendData['trend'] = trendPercentage > 10 ? 'up' : trendPercentage < -10 ? 'down' : 'stable'
-  const marketValue = row?.meta?.marketValue
-  const timeframe = row?.meta?.timeframe ?? '최근'
-  const sourceUrl = row?.meta?.url
-
+// 🔧 SOLID/DRY: Clean data transformation function
+function mapTrendsFeedToTrendData(feedRow: TrendsFeedRow): TrendData {
+  const score = feedRow.trending_score
+  const trend: TrendData['trend'] = score > 0.1 ? 'up' : score < -0.1 ? 'down' : 'stable'
+  const trendPercentage = Math.round(score * 100)
+  
   return {
-    id: row.id,
-    title,
-    category,
+    id: feedRow.id,
+    title: feedRow.title,
+    category: feedRow.category,
     trend,
     trendPercentage,
-    views,
-    likes,
-    comments,
-    shares,
-    tags,
-    description,
-    timeframe,
-    marketValue,
-    sourceUrl,
+    views: feedRow.user_count || Math.round(feedRow.metric_value / 10) || 0,
+    likes: Math.round((feedRow.metric_value || 0) / 10),
+    comments: Math.round((feedRow.metric_value || 0) / 25),
+    shares: Math.round((feedRow.metric_value || 0) / 50),
+    tags: feedRow.tags || [],
+    description: feedRow.description || '트렌드 데이터',
+    timeframe: feedRow.capture_date || '최근',
+    marketValue: feedRow.market_value || undefined,
+    sourceUrl: feedRow.source_url || undefined,
   }
 }
 
@@ -208,61 +219,60 @@ export default function Trends() {
   const [timeframe, setTimeframe] = useState<string>('week')
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
-  const [trendingData, setTrendingData] = useState<TrendData[]>(fallbackData)
+  const [trendingData, setTrendingData] = useState<TrendData[]>([])
 
   useEffect(() => {
     let isMounted = true
+    
     const fetchTrends = async () => {
       try {
         setLoading(true)
         setError(null)
-        // Prefer new normalized feed if available
-        const { data: feed, error: feedErr } = await supabase
-          .from<any>('trends_feed')
+        
+        // 🔧 KISS/SOLID: Type-safe Supabase query with proper error handling
+        const { data: feedData, error: feedError } = await supabase
+          .from('trends_feed')
           .select('*')
           .order('trending_score', { ascending: false })
           .limit(50)
-
-        if (feedErr) throw feedErr
-
-        const mappedFromFeed: TrendData[] = (feed || []).map((r: any) => ({
-          id: r.id,
-          title: r.title,
-          category: r.category,
-          trend: r.trending_score > 0.1 ? 'up' : r.trending_score < -0.1 ? 'down' : 'stable',
-          trendPercentage: Math.round((r.trending_score ?? 0) * 100),
-          views: r.user_count ?? 0,
-          likes: Math.round((r.metric_value ?? 0) / 10),
-          comments: Math.round((r.metric_value ?? 0) / 25),
-          shares: Math.round((r.metric_value ?? 0) / 50),
-          tags: r.tags ?? [],
-          description: r.description ?? '',
-          timeframe: r.capture_date ?? '최근',
-          marketValue: r.market_value ?? undefined,
-          sourceUrl: r.source_url ?? undefined,
-        }))
-
-        if (isMounted && mappedFromFeed.length) {
-          setTrendingData(mappedFromFeed)
-        } else {
-          // fallback: compute from trending_scores if feed is empty
-          const { data, error } = await supabase
-            .from('trending_scores')
-            .select('*')
-            .order('trending_score', { ascending: false })
-            .limit(50)
-          if (error) throw error
-          const rows = (data || []) as Tables<'trending_scores'>[]
-          const mapped = rows.map((r) => normalizeRowToTrendData(r))
-          if (isMounted && mapped.length) setTrendingData(mapped)
+        
+        if (feedError) {
+          console.error('Trends feed query error:', feedError)
+          throw new Error(`데이터베이스 쿼리 실패: ${feedError.message}`)
         }
+
+        if (!feedData || feedData.length === 0) {
+          console.warn('No data from trends_feed, using fallback data')
+          if (isMounted) {
+            setTrendingData(fallbackData)
+          }
+          return
+        }
+
+        // 🔧 DRY: Clean data transformation
+        const transformedData = feedData.map(mapTrendsFeedToTrendData)
+        
+        if (isMounted) {
+          setTrendingData(transformedData)
+          console.log(`✅ Successfully loaded ${transformedData.length} trends from database`)
+        }
+        
       } catch (e: any) {
-        console.error('Failed to load trends', e)
-        setError(e?.message ?? '트렌드 데이터를 불러오지 못했습니다')
+        console.error('Failed to load trends:', e)
+        const errorMessage = e?.message || '트렌드 데이터를 불러오지 못했습니다'
+        
+        if (isMounted) {
+          setError(errorMessage)
+          // 🔧 YAGNI: Simple fallback strategy
+          setTrendingData(fallbackData)
+        }
       } finally {
-        if (isMounted) setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
+    
     fetchTrends()
     return () => { isMounted = false }
   }, [])
