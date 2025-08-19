@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { UserEquipment } from '@/hooks/useStore';
+import { supabase } from '@/integrations/supabase/client';
 
 interface UserNameDisplayProps {
   userId: string;
@@ -20,13 +21,31 @@ const UserNameDisplay: React.FC<UserNameDisplayProps> = ({
   useEffect(() => {
     const fetchEquipment = async () => {
       try {
-        // 임시로 기본 장비 설정 사용 (데이터베이스 테이블이 준비될 때까지)
+        // edge function을 통해 사용자 장착 데이터 가져오기
+        const { data, error } = await supabase.functions.invoke('manage-store', {
+          body: { action: 'get-user-equipment', user_id: userId }
+        });
+
+        if (error || !data?.success) {
+          console.error('장착 아이템 조회 오류:', error);
+          // 에러 시 기본값 설정
+          setEquipment({
+            name_color: '#000000',
+            name_effect: 'none',
+            equipped_animation: 'none',
+            badge: {},
+            frame: {}
+          });
+          return;
+        }
+
+        // 데이터가 있으면 사용, 없으면 기본값
         setEquipment({
-          name_color: '#000000',
-          name_effect: 'none',
-          equipped_animation: 'none',
-          badge: {},
-          frame: {}
+          name_color: data.equipment?.name_color || '#000000',
+          name_effect: data.equipment?.name_effect || 'none',
+          equipped_animation: data.equipment?.equipped_animation || 'none',
+          badge: data.equipment?.badge || {},
+          frame: data.equipment?.frame || {}
         });
       } catch (error) {
         console.error('장착 아이템 조회 실패:', error);

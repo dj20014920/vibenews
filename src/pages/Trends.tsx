@@ -22,6 +22,8 @@ interface TrendData {
   marketValue?: string
 }
 
+// 실제 트렌드 데이터는 trending_scores 테이블과 외부 API를 통해 수집
+// 현재는 샘플 데이터로 UI 구현
 const trendingData: TrendData[] = [
   {
     id: '1',

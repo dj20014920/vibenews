@@ -28,37 +28,53 @@ export default function Tools() {
   useEffect(() => {
     const fetchTools = async () => {
       setLoading(true)
-      // For now, use static data since managed_tools table doesn't exist
-      const mockTools: ManagedTool[] = [
-        {
-          id: '1',
-          name: 'Visual Studio Code',
-          description: '가장 인기 있는 코드 에디터',
-          url: 'https://code.visualstudio.com',
-          category: 'IDE',
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          name: 'Git',
-          description: '분산 버전 관리 시스템',
-          url: 'https://git-scm.com',
-          category: 'CLI',
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '3',
-          name: 'GitHub',
-          description: '코드 호스팅 및 협업 플랫폼',
-          url: 'https://github.com',
-          category: 'SaaS',
-          created_at: new Date().toISOString()
+      try {
+        // 실제 관리 도구 데이터를 가져오기 시도
+        const { data, error } = await supabase.functions.invoke('sync-managed-tools', {
+          body: { action: 'list' }
+        });
+
+        if (data?.success && data.tools) {
+          setTools(data.tools);
+        } else {
+          // 에러 시 또는 데이터가 없을 때 기본 도구 목록 사용
+          const mockTools: ManagedTool[] = [
+            {
+              id: '1',
+              name: 'Visual Studio Code',
+              description: '가장 인기 있는 코드 에디터',
+              url: 'https://code.visualstudio.com',
+              category: 'IDE',
+              created_at: new Date().toISOString()
+            },
+            {
+              id: '2',
+              name: 'Git',
+              description: '분산 버전 관리 시스템',
+              url: 'https://git-scm.com',
+              category: 'CLI',
+              created_at: new Date().toISOString()
+            },
+            {
+              id: '3',
+              name: 'GitHub',
+              description: '코드 호스팅 및 협업 플랫폼',
+              url: 'https://github.com',
+              category: 'SaaS',
+              created_at: new Date().toISOString()
+            }
+          ];
+          setTools(mockTools);
         }
-      ]
-      setTools(mockTools)
-      setLoading(false)
-    }
-    fetchTools()
+      } catch (error) {
+        console.error('도구 목록 로딩 실패:', error);
+        // 에러 시 빈 배열
+        setTools([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTools();
   }, [])
 
   const filteredTools = useMemo(() => {

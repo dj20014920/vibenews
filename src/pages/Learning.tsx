@@ -24,6 +24,8 @@ interface LearningPath {
   students: number
 }
 
+// 실제 학습 경로를 데이터베이스에서 가져오는 로직 구현 예정
+// 현재는 샘플 데이터 사용
 const samplePaths: LearningPath[] = [
   {
     id: '1',

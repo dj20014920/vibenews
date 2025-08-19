@@ -40,14 +40,22 @@ export function FeedbackWidget() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       
-      // 피드백을 reports 테이블에 저장 (임시 해결책)
-      const { error } = await supabase.from('reports').insert({
-        content_type: 'feedback',
-        content_id: crypto.randomUUID(), // 임시 ID
-        reason: feedbackType,
-        description: `Rating: ${rating}/5\nMessage: ${message}\nEmail: ${email || 'Not provided'}`,
-        reporter_id: user?.id || null
-      })
+      // 피드백을 실제 피드백 시스템에 저장 
+      const { data, error } = await supabase.functions.invoke('manage-notifications', {
+        body: {
+          action: 'create',
+          type: 'feedback',
+          title: `${feedbackType} 피드백`,
+          content: `평점: ${rating}/5${message ? `\n메시지: ${message}` : ''}${email ? `\n이메일: ${email}` : ''}`,
+          data: {
+            feedback_type: feedbackType,
+            rating,
+            message,
+            email,
+            user_id: user?.id
+          }
+        }
+      });
 
       if (error) throw error
 

@@ -57,20 +57,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     console.log("AuthProvider useEffect running, user:", user, "loading:", loading);
   }, [user, loading]);
 
-  // 사용자 초기화 (atomic하게 처리)
+  // 사용자 초기화 (프로필 생성 및 설정 로드를 한 번에 처리)
   const initializeUser = async (user: User) => {
     try {
-      const { data, error } = await supabase.rpc('initialize_user', {
-        p_user_id: user.id,
-        p_email: user.email!,
-        p_nickname: user.user_metadata?.nickname,
-        p_avatar_url: user.user_metadata?.avatar_url
-      });
+      // 사용자 프로필 확보
+      const { data: profileData, error: profileError } = await supabase
+        .from('users')
+        .upsert({
+          id: user.id,
+          email: user.email!,
+          nickname: user.user_metadata?.nickname || user.email!.split('@')[0],
+          profile_image_url: user.user_metadata?.avatar_url
+        }, {
+          onConflict: 'id'
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (profileError) throw profileError;
+
+      // 사용자 설정 확보
+      const { data: preferencesData, error: preferencesError } = await supabase
+        .from('user_preferences')
+        .upsert({
+          user_id: user.id,
+          theme: 'system',
+          language: 'ko',
+          content_mode: 'beginner',
+          email_notifications: true,
+          push_notifications: true,
+          anonymous_mode_default: false
+        }, {
+          onConflict: 'user_id'
+        })
+        .select()
+        .single();
+
+      if (preferencesError) throw preferencesError;
 
       // 결과에서 프로필과 설정 정보 추출
-      const result = data as { profile: any; preferences: any };
+      const result = { profile: profileData, preferences: preferencesData };
       
       setRole(result.profile?.role || 'user');
       

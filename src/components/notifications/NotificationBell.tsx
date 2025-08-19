@@ -36,66 +36,81 @@ export function NotificationBell() {
     if (!user) return
 
     try {
-      // 여기서는 임시로 더미 데이터를 사용합니다
-      // 실제로는 notifications 테이블에서 데이터를 가져와야 합니다
-      const dummyNotifications: Notification[] = [
-        {
-          id: "1",
-          type: "like",
-          title: "새로운 좋아요",
-          message: "누군가가 당신의 게시글에 좋아요를 눌렀습니다",
-          is_read: false,
-          created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30분 전
-          action_url: "/community"
-        },
-        {
-          id: "2",
-          type: "comment",
-          title: "새로운 댓글",
-          message: "당신의 게시글에 새로운 댓글이 달렸습니다",
-          is_read: false,
-          created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2시간 전
-          action_url: "/community"
-        },
-        {
-          id: "3",
-          type: "news",
-          title: "트렌딩 뉴스",
-          message: "AI 개발 도구에 대한 새로운 소식이 있습니다",
-          is_read: true,
-          created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1일 전
-          action_url: "/news"
-        },
-        {
-          id: "4",
-          type: "system",
-          title: "시스템 알림",
-          message: "새로운 기능이 추가되었습니다! 확인해보세요",
-          is_read: true,
-          created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), // 2일 전
-          action_url: "/"
-        }
-      ]
+      // notifications 테이블이 없을 수 있으므로 edge function 사용
+      const { data, error } = await supabase.functions.invoke('manage-notifications', {
+        body: { action: 'get', limit: 10 }
+      });
 
-      setNotifications(dummyNotifications)
-      setUnreadCount(dummyNotifications.filter(n => !n.is_read).length)
+      if (error || !data.success) {
+        console.error('Error loading notifications:', error);
+        // 에러 시 빈 배열로 설정
+        setNotifications([]);
+        setUnreadCount(0);
+        return;
+      }
+
+      // notifications 데이터 변환
+      const formattedNotifications: Notification[] = (data.notifications || []).map((notification: any) => ({
+        id: notification.id,
+        type: (notification.type as Notification['type']) || 'system',
+        title: notification.title,
+        message: notification.content || '',
+        is_read: notification.is_read,
+        created_at: notification.created_at,
+        action_url: notification.data?.action_url || '/'
+      }));
+
+      setNotifications(formattedNotifications);
+      setUnreadCount(formattedNotifications.filter(n => !n.is_read).length);
     } catch (error) {
       console.error('Error loading notifications:', error)
     }
   }
 
   const markAsRead = async (notificationId: string) => {
-    setNotifications(prev => 
-      prev.map(n => 
-        n.id === notificationId ? { ...n, is_read: true } : n
-      )
-    )
-    setUnreadCount(prev => Math.max(0, prev - 1))
+    try {
+      // edge function을 통해 알림을 읽음으로 표시
+      const { data, error } = await supabase.functions.invoke('manage-notifications', {
+        body: { action: 'mark_read', notification_id: notificationId }
+      });
+
+      if (error || !data?.success) {
+        console.error('Error marking notification as read:', error);
+        return;
+      }
+
+      // 로컬 상태 업데이트
+      setNotifications(prev => 
+        prev.map(n => 
+          n.id === notificationId ? { ...n, is_read: true } : n
+        )
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
   }
 
   const markAllAsRead = async () => {
-    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
-    setUnreadCount(0)
+    if (!user) return;
+
+    try {
+      // edge function을 통해 모든 미읽은 알림을 읽음으로 표시
+      const { data, error } = await supabase.functions.invoke('manage-notifications', {
+        body: { action: 'mark_read', mark_all: true }
+      });
+
+      if (error || !data?.success) {
+        console.error('Error marking all notifications as read:', error);
+        return;
+      }
+
+      // 로컬 상태 업데이트
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
   }
 
   const getNotificationIcon = (type: Notification['type']) => {

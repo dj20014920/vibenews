@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface StoreItem {
   id: string;
@@ -43,22 +44,50 @@ const getStoreItems = async (): Promise<StoreItem[]> => {
   return data.items;
 };
 
-// 사용자 인벤토리 조회 (더미 데이터)
+// 사용자 인벤토리 조회
 const getUserInventory = async (): Promise<UserInventoryItem[]> => {
-  // 데이터베이스 테이블이 타입에 반영될 때까지 빈 배열 반환
-  return [];
+  try {
+    const { data, error } = await supabase.functions.invoke('manage-store', {
+      body: { action: 'get-inventory' },
+    });
+
+    if (error) throw new Error(error.message);
+    if (!data.success) throw new Error(data.error || '인벤토리를 불러오는데 실패했습니다.');
+
+    return data.inventory || [];
+  } catch (error) {
+    console.error('인벤토리 조회 실패:', error);
+    return [];
+  }
 };
 
-// 사용자 장착 아이템 정보 조회 (더미 데이터)
+// 사용자 장착 아이템 정보 조회
 const getUserEquipment = async (): Promise<UserEquipment> => {
-  // 기본 장비 설정 반환
-  return {
-    name_color: '#000000',
-    name_effect: 'none',
-    equipped_animation: 'none',
-    badge: {},
-    frame: {}
-  };
+  try {
+    const { data, error } = await supabase.functions.invoke('manage-store', {
+      body: { action: 'get-equipment' },
+    });
+
+    if (error) throw new Error(error.message);
+    if (!data.success) throw new Error(data.error || '장착 정보를 불러오는데 실패했습니다.');
+
+    return data.equipment || {
+      name_color: '#000000',
+      name_effect: 'none',
+      equipped_animation: 'none',
+      badge: {},
+      frame: {}
+    };
+  } catch (error) {
+    console.error('장착 정보 조회 실패:', error);
+    return {
+      name_color: '#000000',
+      name_effect: 'none',
+      equipped_animation: 'none',
+      badge: {},
+      frame: {}
+    };
+  }
 };
 
 // 아이템 구매
@@ -82,6 +111,7 @@ const equipItem = async (itemId: string) => {
 export const useStore = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // 상점 아이템 목록
   const { data: items, isLoading, isError, error } = useQuery<StoreItem[], Error>({
@@ -89,18 +119,18 @@ export const useStore = () => {
     queryFn: getStoreItems,
   });
 
-  // 사용자 인벤토리 (임시 비활성화)
+  // 사용자 인벤토리
   const { data: inventory, isLoading: isInventoryLoading } = useQuery<UserInventoryItem[], Error>({
     queryKey: ['user-inventory'],
     queryFn: getUserInventory,
-    enabled: false, // 데이터베이스 테이블이 준비될 때까지 비활성화
+    enabled: !!user, // 사용자가 로그인했을 때만 활성화
   });
 
-  // 사용자 장착 아이템 (임시 비활성화)
+  // 사용자 장착 아이템
   const { data: equipment, isLoading: isEquipmentLoading } = useQuery<UserEquipment, Error>({
     queryKey: ['user-equipment'],
     queryFn: getUserEquipment,
-    enabled: false, // 데이터베이스 테이블이 준비될 때까지 비활성화
+    enabled: !!user, // 사용자가 로그인했을 때만 활성화
   });
 
   // 구매 뮤테이션
@@ -144,14 +174,14 @@ export const useStore = () => {
     },
   });
 
-  // 아이템이 이미 보유되었는지 확인 (임시)
+  // 아이템이 이미 보유되었는지 확인
   const isItemOwned = (itemId: string): boolean => {
-    return false; // 데이터베이스 준비될 때까지 false 반환
+    return inventory?.some(item => item.item_id === itemId) || false;
   };
 
-  // 아이템이 장착되었는지 확인 (임시)
+  // 아이템이 장착되었는지 확인
   const isItemEquipped = (itemId: string): boolean => {
-    return false; // 데이터베이스 준비될 때까지 false 반환
+    return inventory?.some(item => item.item_id === itemId && item.is_equipped) || false;
   };
 
   return {
