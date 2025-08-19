@@ -1,4 +1,4 @@
-import { Home, Newspaper, Users, Search, Bookmark, Settings, Code2, GraduationCap, TrendingUp, Shield, Crown, Store, BookText, Package } from "lucide-react"
+import { Home, Newspaper, Users, Search, Bookmark, Settings, Code2, TrendingUp, Shield, Crown, Store, BookText, Package } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 
@@ -30,7 +30,6 @@ export function AppSidebar() {
 
   const toolsItems = [
     { title: t('sidebar.tools'), url: "/tools", icon: Code2 },
-    { title: "학습 경로", url: "/learning", icon: GraduationCap },
     { title: "트렌드", url: "/trends", icon: TrendingUp },
   ]
 
