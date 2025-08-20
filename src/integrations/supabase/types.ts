@@ -594,6 +594,93 @@ export type Database = {
         }
         Relationships: []
       }
+      trends_external: {
+        Row: {
+          ai_features: Json | null
+          capture_date: string
+          category: string
+          created_at: string
+          description: string | null
+          developer_rating: number | null
+          enterprise_count: number | null
+          github_stars: number | null
+          id: string
+          integration_count: number | null
+          market_value: string | null
+          metric_type: string
+          metric_value: number
+          official_website: string | null
+          price_plan: string | null
+          pricing_model: string | null
+          reddit_mentions: number | null
+          source_name: string | null
+          source_url: string | null
+          stackoverflow_mentions: number | null
+          tags: string[]
+          title: string
+          trending_velocity: number | null
+          updated_at: string
+          user_count: number | null
+          yoy_delta: number | null
+        }
+        Insert: {
+          ai_features?: Json | null
+          capture_date?: string
+          category: string
+          created_at?: string
+          description?: string | null
+          developer_rating?: number | null
+          enterprise_count?: number | null
+          github_stars?: number | null
+          id?: string
+          integration_count?: number | null
+          market_value?: string | null
+          metric_type: string
+          metric_value: number
+          official_website?: string | null
+          price_plan?: string | null
+          pricing_model?: string | null
+          reddit_mentions?: number | null
+          source_name?: string | null
+          source_url?: string | null
+          stackoverflow_mentions?: number | null
+          tags?: string[]
+          title: string
+          trending_velocity?: number | null
+          updated_at?: string
+          user_count?: number | null
+          yoy_delta?: number | null
+        }
+        Update: {
+          ai_features?: Json | null
+          capture_date?: string
+          category?: string
+          created_at?: string
+          description?: string | null
+          developer_rating?: number | null
+          enterprise_count?: number | null
+          github_stars?: number | null
+          id?: string
+          integration_count?: number | null
+          market_value?: string | null
+          metric_type?: string
+          metric_value?: number
+          official_website?: string | null
+          price_plan?: string | null
+          pricing_model?: string | null
+          reddit_mentions?: number | null
+          source_name?: string | null
+          source_url?: string | null
+          stackoverflow_mentions?: number | null
+          tags?: string[]
+          title?: string
+          trending_velocity?: number | null
+          updated_at?: string
+          user_count?: number | null
+          yoy_delta?: number | null
+        }
+        Relationships: []
+      }
       user_badges: {
         Row: {
           badge_category: string
@@ -740,6 +827,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_preferences: {
+        Row: {
+          anonymous_mode_default: boolean | null
+          content_mode: string | null
+          created_at: string
+          email_notifications: boolean | null
+          language: string | null
+          push_notifications: boolean | null
+          theme: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          anonymous_mode_default?: boolean | null
+          content_mode?: string | null
+          created_at?: string
+          email_notifications?: boolean | null
+          language?: string | null
+          push_notifications?: boolean | null
+          theme?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          anonymous_mode_default?: boolean | null
+          content_mode?: string | null
+          created_at?: string
+          email_notifications?: boolean | null
+          language?: string | null
+          push_notifications?: boolean | null
+          theme?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           bio: string | null
@@ -775,6 +898,87 @@ export type Database = {
       }
     }
     Views: {
+      trends_feed: {
+        Row: {
+          ai_features: Json | null
+          capture_date: string | null
+          category: string | null
+          description: string | null
+          developer_rating: number | null
+          enterprise_count: number | null
+          github_stars: number | null
+          id: string | null
+          integration_count: number | null
+          market_value: string | null
+          metric_type: string | null
+          metric_value: number | null
+          official_website: string | null
+          price_plan: string | null
+          pricing_model: string | null
+          reddit_mentions: number | null
+          source_name: string | null
+          source_url: string | null
+          stackoverflow_mentions: number | null
+          tags: string[] | null
+          title: string | null
+          trending_score: number | null
+          user_count: number | null
+          yoy_delta: number | null
+        }
+        Insert: {
+          ai_features?: Json | null
+          capture_date?: string | null
+          category?: never
+          description?: string | null
+          developer_rating?: number | null
+          enterprise_count?: number | null
+          github_stars?: number | null
+          id?: never
+          integration_count?: number | null
+          market_value?: string | null
+          metric_type?: string | null
+          metric_value?: number | null
+          official_website?: string | null
+          price_plan?: string | null
+          pricing_model?: string | null
+          reddit_mentions?: number | null
+          source_name?: string | null
+          source_url?: string | null
+          stackoverflow_mentions?: number | null
+          tags?: string[] | null
+          title?: string | null
+          trending_score?: number | null
+          user_count?: number | null
+          yoy_delta?: number | null
+        }
+        Update: {
+          ai_features?: Json | null
+          capture_date?: string | null
+          category?: never
+          description?: string | null
+          developer_rating?: number | null
+          enterprise_count?: number | null
+          github_stars?: number | null
+          id?: never
+          integration_count?: number | null
+          market_value?: string | null
+          metric_type?: string | null
+          metric_value?: number | null
+          official_website?: string | null
+          price_plan?: string | null
+          pricing_model?: string | null
+          reddit_mentions?: number | null
+          source_name?: string | null
+          source_url?: string | null
+          stackoverflow_mentions?: number | null
+          tags?: string[] | null
+          title?: string | null
+          trending_score?: number | null
+          user_count?: number | null
+          yoy_delta?: number | null
+        }
+        Relationships: []
+      }
       user_profiles: {
         Row: {
           created_at: string | null
@@ -798,8 +1002,40 @@ export type Database = {
       }
     }
     Functions: {
+      ensure_user_preferences: {
+        Args: { p_user_id: string }
+        Returns: {
+          anonymous_mode_default: boolean
+          content_mode: string
+          email_notifications: boolean
+          language: string
+          push_notifications: boolean
+          theme: string
+        }[]
+      }
+      ensure_user_profile: {
+        Args: {
+          p_avatar_url?: string
+          p_email: string
+          p_nickname?: string
+          p_user_id: string
+        }
+        Returns: {
+          avatar_url: string
+          created_at: string
+          email: string
+          id: string
+          nickname: string
+          role: string
+          updated_at: string
+        }[]
+      }
       equip_item: {
         Args: { p_item_id: string; p_user_id: string }
+        Returns: Json
+      }
+      get_trend_details: {
+        Args: { trend_id: string }
         Returns: Json
       }
       get_user_equipment: {
@@ -813,6 +1049,15 @@ export type Database = {
       increment_view_count: {
         Args: { content_id: string; content_type: string }
         Returns: number
+      }
+      initialize_user: {
+        Args: {
+          p_avatar_url?: string
+          p_email: string
+          p_nickname?: string
+          p_user_id: string
+        }
+        Returns: Json
       }
       is_admin: {
         Args: { p_user_id?: string }
